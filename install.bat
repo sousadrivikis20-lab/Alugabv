@@ -31,22 +31,9 @@ node -v
 npm -v
 echo.
 
-REM --- 2. Limpar ambiente antigo (se existir) para garantir uma instalacao limpa ---
-echo Verificando instalacoes antigas...
-if exist package-lock.json (
-    echo Removendo 'package-lock.json' antigo...
-    del package-lock.json
-)
-if exist node_modules (
-    echo Removendo a pasta 'node_modules' antiga...
-    rmdir /s /q node_modules
-)
-echo Ambiente limpo.
-echo.
-
 REM --- 2. Instalar as dependencias do projeto ---
 echo Instalando as dependencias do projeto com 'npm install'. Isso pode levar alguns minutos...
-npm install
+npm install concurrently
 if %errorlevel% neq 0 (
     echo [ERRO] Falha ao instalar as dependencias com 'npm install'.
     echo Verifique sua conexao com a internet e os logs de erro, e tente novamente.

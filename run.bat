@@ -2,13 +2,16 @@
 title Iniciando o Site
 
 echo Iniciando o servidor...
-start node server.js
+start npm start
 
 echo Aguardando o servidor iniciar...
 timeout /t 5 /nobreak >nul
 
+:: Read port from .port file
+for /f "usebackq delims=" %%a in (".port") do set PORT=%%a
+
 echo Abrindo o site no navegador...
-start "" "http://localhost:%PORT%"
+start http://localhost:%PORT%
 
 echo Site iniciado!
 pause
