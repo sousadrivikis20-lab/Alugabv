@@ -4,3 +4,9 @@ Iniciar servidor: Executar run.bat
 
 ### Ao inciar o servidor, o navegador abrirá na página do site automaticamente, aguarde.
 
+Input de whatsapp apenas números
+Função para excluir seu usuário, trocar nome, senha e se é proprietário ou cliente.
+Adicionar ícone na janela
+Responsividade no site
+
+

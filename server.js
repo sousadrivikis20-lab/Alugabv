@@ -11,8 +11,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- Configuração do Multer para Upload de Imagens ---
-
-
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         const uploadPath = path.join(dataManager.dataDir, 'uploads');
@@ -33,24 +31,24 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Para parsear application/x-www-form-urlencoded
 app.use('/uploads', express.static(path.join(dataManager.dataDir, 'uploads'))); // Servir imagens da pasta uploads do disco persistente
 
-
+// Verifica se a SESSION_SECRET foi definida no .env
+if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_super_secreto_aqui_com_pelo_menos_32_caracteres') {
+    console.error('ERRO FATAL: A variável de ambiente SESSION_SECRET não está definida ou está usando o valor padrão.');
+    console.error('Por favor, crie um arquivo .env, gere uma chave segura e adicione em SESSION_SECRET.');
+    process.exit(1);
+}
 
 // Configuração da Sessão
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'default_secret_for_dev_change_it',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 } // 1 dia
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production', // Use cookies seguros em produção (HTTPS)
+        httpOnly: true, 
+        maxAge: 24 * 60 * 60 * 1000 // 1 dia
+    }
 }));
-
-// --- Inicialização dos arquivos de dados ---
-// Isso deve ser chamado antes de qualquer rota que dependa dos arquivos.
-dataManager.initializeDataFiles().then(() => {
-    console.log('Arquivos de dados inicializados com sucesso.');
-}).catch(err => {
-    console.error('Falha ao inicializar arquivos de dados:', err);
-    process.exit(1); // Sai da aplicação se não conseguir inicializar os dados
-});
 
 // --- Middlewares de Autenticação ---
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.status(401).json({ message: 'Não autorizado. Faça login para continuar.' });
@@ -73,48 +71,68 @@ const isPropertyOwner = async (req, res, next) => {
         req.property = property; // Passa o imóvel para o próximo handler
         next();
     } catch (error) {
+        console.error("Erro em isPropertyOwner:", error);
         res.status(500).json({ message: 'Erro ao verificar permissões do imóvel.' });
     }
 };
 
 // --- Rotas de Autenticação ---
 app.post('/api/auth/register', async (req, res) => {
-    const { username, password, role } = req.body;
-    if (!username || !password || !role) {
-        return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+    try {
+        const { username, password, role } = req.body;
+        if (!username || !password || !role) {
+            return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+        }
+
+        const users = await dataManager.readUsers();
+        if (users.find(u => u.username === username)) {
+            return res.status(409).json({ message: 'Usuário já existe.' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        users.push({ id: uuidv4(), username, password: hashedPassword, role });
+        await dataManager.writeUsers(users);
+        res.status(201).json({ message: 'Usuário registrado com sucesso!' });
+    } catch (error) {
+        console.error("Erro no registro de usuário:", error);
+        res.status(500).json({ message: 'Ocorreu um erro interno ao registrar o usuário.' });
     }
-
-    const users = await dataManager.readUsers();
-    if (users.find(u => u.username === username)) return res.status(409).json({ message: 'Usuário já existe.' });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    users.push({ id: uuidv4(), username, password: hashedPassword, role });
-    await dataManager.writeUsers(users);
-    res.status(201).json({ message: 'Usuário registrado com sucesso!' });
 });
 
 app.post('/api/auth/login', async (req, res) => {
-    const { username, password } = req.body; // Assume que 'users.json' é um array de usuários
-    const users = await dataManager.readUsers();
-    const user = users.find(u => u.username === username);
+    try {
+        const { username, password } = req.body;
+        const users = await dataManager.readUsers();
+        const user = users.find(u => u.username === username);
 
-    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
+        }
 
-    const userSessionData = { id: user.id, username: user.username, role: user.role };
-    req.session.user = userSessionData;
-    res.json({ message: 'Login bem-sucedido!', user: userSessionData });
+        const userSessionData = { id: user.id, username: user.username, role: user.role };
+        req.session.user = userSessionData;
+        res.json({ message: 'Login bem-sucedido!', user: userSessionData });
+    } catch (error) {
+        console.error("Erro no login:", error);
+        res.status(500).json({ message: 'Ocorreu um erro interno durante o login.' });
+    }
 });
 
 app.post('/api/auth/logout', (req, res) => {
     req.session.destroy(err => {
-        if (err) return res.status(500).json({ message: 'Não foi possível fazer logout.' });
+        if (err) {
+            console.error("Erro ao fazer logout:", err);
+            return res.status(500).json({ message: 'Não foi possível fazer logout.' });
+        }
         res.clearCookie('connect.sid');
         res.json({ message: 'Logout bem-sucedido.' });
     });
 });
 
 app.get('/api/auth/session', (req, res) => {
-    if (req.session.user) return res.json({ user: req.session.user });
+    if (req.session.user) {
+        return res.json({ user: req.session.user });
+    }
     res.status(404).json({ message: 'Nenhuma sessão ativa.' });
 });
 
@@ -122,140 +140,171 @@ app.get('/api/auth/session', (req, res) => {
 app.get('/api/imoveis', async (req, res) => {
     try {
         const propertiesData = await dataManager.readImoveis();
-        res.json(propertiesData.imoveis || []); // Retorna apenas o array de imóveis
+        res.json(propertiesData.imoveis || []);
     } catch (error) {
+        console.error("Erro ao carregar imóveis:", error);
         res.status(500).json({ message: 'Erro ao carregar imóveis.' });
     }
 });
 
 app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), async (req, res) => {
-    const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description } = req.body;
-    // Aceita descricao ou description
-    const propertyDescricao = descricao !== undefined ? descricao : description;
-    if (!nome || !contato || !coords || !transactionType || !propertyType || !propertyDescricao) {
-        return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+    try {
+        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description } = req.body;
+        const propertyDescricao = descricao !== undefined ? descricao : description;
+        if (!nome || !contato || !coords || !transactionType || !propertyType || !propertyDescricao) {
+            return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+        }
+
+        const propertiesData = await dataManager.readImoveis();
+        const properties = propertiesData.imoveis || [];
+        const newProperty = {
+            id: uuidv4(),
+            nome,
+            descricao: propertyDescricao,
+            contato,
+            transactionType,
+            propertyType,
+            salePrice: salePrice ? parseFloat(salePrice) : null,
+            rentalPrice: rentalPrice ? parseFloat(rentalPrice) : null,
+            rentalPeriod: rentalPeriod || null,
+            coords: JSON.parse(coords),
+            ownerId: req.session.user.id,
+            ownerUsername: req.session.user.username,
+            images: req.files ? req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/")) : []
+        };
+
+        properties.push(newProperty);
+        await dataManager.writeImoveis({ imoveis: properties });
+
+        res.status(201).json({ message: 'Imóvel adicionado com sucesso!', property: newProperty });
+    } catch (error) {
+        console.error('Erro ao salvar imóvel:', error);
+        res.status(500).json({ message: 'Ocorreu um erro interno ao salvar o imóvel.' });
     }
-
-    const propertiesData = await dataManager.readImoveis();
-    const properties = propertiesData.imoveis || [];
-    const newProperty = {
-        id: uuidv4(),
-        nome,
-        descricao: propertyDescricao,
-        contato,
-        transactionType,
-        propertyType,
-        // Salva os preços como números
-        salePrice: salePrice ? parseFloat(salePrice) : null,
-        rentalPrice: rentalPrice ? parseFloat(rentalPrice) : null,
-        rentalPeriod: rentalPeriod || null,
-        coords: JSON.parse(coords),
-        ownerId: req.session.user.id, // ID do usuário logado
-        ownerUsername: req.session.user.username, // Nome do usuário logado
-        // Salva o caminho relativo da imagem para ser acessado via /uploads/filename.jpg
-        images: req.files ? req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/")) : []
-    };
-
-    properties.push(newProperty);
-    await dataManager.writeImoveis({ imoveis: properties }); // Salva o objeto completo
-
-    res.status(201).json({ message: 'Imóvel adicionado com sucesso!', property: newProperty });
 });
 
 app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imagens', 5), async (req, res) => {
-    const { id } = req.params;
+    try {
+        const { id } = req.params;
+        const propertiesData = await dataManager.readImoveis();
+        const properties = propertiesData.imoveis || [];
+        const propertyIndex = properties.findIndex(p => p.id === id);
 
-    const properties = await readDb(PROPERTIES_DB_PATH);
-    const propertyIndex = properties.findIndex(p => p.id === id);
-    const propertyToUpdate = properties[propertyIndex];
-
-    // Atualiza os campos de texto apenas se eles foram enviados no corpo da requisição
-    // Isso evita que campos não enviados (ex: rentalPrice em uma venda) apaguem dados existentes.
-    if (req.body.nome !== undefined) propertyToUpdate.nome = req.body.nome;
-    if (req.body.descricao !== undefined) propertyToUpdate.descricao = req.body.descricao;
-    if (req.body.contato !== undefined) propertyToUpdate.contato = req.body.contato;
-    if (req.body.transactionType !== undefined) propertyToUpdate.transactionType = req.body.transactionType;
-    if (req.body.propertyType !== undefined) propertyToUpdate.propertyType = req.body.propertyType;
-
-    // Atualiza a localização se for fornecida
-    if (req.body.coords) {
-        try {
-            propertyToUpdate.coords = JSON.parse(req.body.coords);
-        } catch (e) {
-            console.error("Erro ao parsear coordenadas na atualização:", e);
+        if (propertyIndex === -1) {
+            return res.status(404).json({ message: 'Imóvel não encontrado.' });
         }
-    }
 
-    // Atualiza os preços, convertendo para número ou null
-    if (req.body.salePrice !== undefined) {
-        propertyToUpdate.salePrice = req.body.salePrice ? parseFloat(req.body.salePrice) : null;
-    }
-    if (req.body.rentalPrice !== undefined) {
-        propertyToUpdate.rentalPrice = req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null;
-    }
-    if (req.body.rentalPeriod !== undefined) {
-        propertyToUpdate.rentalPeriod = req.body.rentalPeriod || null;
-    }
+        const propertyToUpdate = properties[propertyIndex];
 
-    // Adiciona novas imagens, se houver
-    if (req.files && req.files.length > 0) {
-        const newImages = req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/"));
-        propertyToUpdate.images = [...(propertyToUpdate.images || []), ...newImages];
+        if (req.body.nome !== undefined) propertyToUpdate.nome = req.body.nome;
+        if (req.body.descricao !== undefined) propertyToUpdate.descricao = req.body.descricao;
+        if (req.body.contato !== undefined) propertyToUpdate.contato = req.body.contato;
+        if (req.body.transactionType !== undefined) propertyToUpdate.transactionType = req.body.transactionType;
+        if (req.body.propertyType !== undefined) propertyToUpdate.propertyType = req.body.propertyType;
+        if (req.body.coords) propertyToUpdate.coords = JSON.parse(req.body.coords);
+        if (req.body.salePrice !== undefined) propertyToUpdate.salePrice = req.body.salePrice ? parseFloat(req.body.salePrice) : null;
+        if (req.body.rentalPrice !== undefined) propertyToUpdate.rentalPrice = req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null;
+        if (req.body.rentalPeriod !== undefined) propertyToUpdate.rentalPeriod = req.body.rentalPeriod || null;
+
+        if (req.files && req.files.length > 0) {
+            const newImages = req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/"));
+            propertyToUpdate.images = [...(propertyToUpdate.images || []), ...newImages];
+        }
+
+        properties[propertyIndex] = propertyToUpdate;
+        await dataManager.writeImoveis({ imoveis: properties });
+
+        res.json({ message: 'Imóvel atualizado com sucesso!', property: propertyToUpdate });
+    } catch (error) {
+        console.error('Erro ao atualizar imóvel:', error);
+        res.status(500).json({ message: 'Ocorreu um erro interno ao atualizar o imóvel.' });
     }
-
-    properties[propertyIndex] = propertyToUpdate;
-    await dataManager.writeImoveis({ imoveis: properties });
-
-    res.json({ message: 'Imóvel atualizado com sucesso!', property: propertyToUpdate });
 });
 
 app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (req, res) => {
-    const { id } = req.params;
-    const { imagePath } = req.body;
+    try {
+        const { id } = req.params;
+        const { imagePath } = req.body;
 
-    if (!imagePath) {
-        return res.status(400).json({ message: 'Caminho da imagem é obrigatório.' });
+        if (!imagePath) {
+            return res.status(400).json({ message: 'Caminho da imagem é obrigatório.' });
+        }
+
+        const propertiesData = await dataManager.readImoveis();
+        const properties = propertiesData.imoveis || [];
+        const propertyIndex = properties.findIndex(p => p.id === id);
+
+        if (propertyIndex === -1) {
+            return res.status(404).json({ message: 'Imóvel não encontrado.' });
+        }
+
+        const propertyToUpdate = properties[propertyIndex];
+        propertyToUpdate.images = propertyToUpdate.images.filter(img => img !== imagePath);
+
+        require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
+            if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
+        });
+
+        properties[propertyIndex] = propertyToUpdate;
+        await dataManager.writeImoveis({ imoveis: properties });
+
+        res.json({ message: 'Imagem removida com sucesso!', property: propertyToUpdate });
+    } catch (error) {
+        console.error('Erro ao remover imagem do imóvel:', error);
+        res.status(500).json({ message: 'Ocorreu um erro interno ao remover a imagem.' });
     }
-
-    const propertiesData = await dataManager.readImoveis();
-    const properties = propertiesData.imoveis || [];
-    const propertyIndex = properties.findIndex(p => p.id === id);
-    const propertyToUpdate = properties[propertyIndex];
-
-    propertyToUpdate.images = propertyToUpdate.images.filter(img => img !== imagePath);
-
-    require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
-        if (err) console.error(`Erro ao deletar imagem ${imagePath}:`, err);
-    });
-
-    properties[propertyIndex] = propertyToUpdate;
-    await writeDb(PROPERTIES_DB_PATH, properties);
-
-    res.json({ message: 'Imagem removida com sucesso!', property: propertyToUpdate });
 });
 
 app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res) => {
-    const { id } = req.params;
-    const propertiesData = await dataManager.readImoveis();
-    const properties = propertiesData.imoveis || [];
-    const propertyIndex = properties.findIndex(p => p.id === id);
+    try {
+        const { id } = req.params;
+        const propertiesData = await dataManager.readImoveis();
+        const properties = propertiesData.imoveis || [];
+        const propertyIndex = properties.findIndex(p => p.id === id);
 
-    if (req.property.images && req.property.images.length > 0) {
-        req.property.images.forEach(imagePath => {
-            require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
-                if (err) console.error(`Erro ao deletar imagem ${imagePath}:`, err);
+        if (propertyIndex === -1) {
+            return res.status(404).json({ message: 'Imóvel não encontrado para exclusão.' });
+        }
+
+        if (req.property.images && req.property.images.length > 0) {
+            req.property.images.forEach(imagePath => {
+                require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
+                    if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
+                });
             });
-        });
-    }
+        }
 
-    properties.splice(propertyIndex, 1);
-    await dataManager.writeImoveis({ imoveis: properties });
-    res.json({ message: 'Imóvel removido com sucesso.' });
+        properties.splice(propertyIndex, 1);
+        await dataManager.writeImoveis({ imoveis: properties });
+        res.json({ message: 'Imóvel removido com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao remover imóvel:', error);
+        res.status(500).json({ message: 'Ocorreu um erro interno ao remover o imóvel.' });
+    }
 });
 
 // Servir arquivos estáticos (HTML, CSS, JS do cliente) - DEVE VIR DEPOIS DAS ROTAS DA API
+// ATENÇÃO: Servir o diretório raiz é um risco de segurança, pois expõe arquivos como server.js.
+// A melhor prática é mover index.html, script.js e style.css para uma pasta 'public' e usar app.use(express.static('public'))
 app.use(express.static(path.join(__dirname)));
 
-app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-});
+// --- Função para iniciar o servidor de forma segura ---
+async function startServer() {
+    try {
+        // 1. Garante que os arquivos de dados e diretórios existam ANTES de o servidor começar a ouvir.
+        await dataManager.initializeDataFiles();
+        console.log('Arquivos de dados inicializados com sucesso.');
+
+        // 2. Inicia o servidor apenas após a inicialização bem-sucedida.
+        app.listen(PORT, () => {
+            console.log(`Servidor rodando na porta ${PORT}`);
+        });
+
+    } catch (err) {
+        console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
+        process.exit(1); // Encerra o processo se a inicialização falhar.
+    }
+}
+
+// Inicia a aplicação
+startServer();
