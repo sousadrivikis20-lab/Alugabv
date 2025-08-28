@@ -1,0 +1,4 @@
+Instalar todas as dependências e bibliotecas necessárias: Executar install.bat
+
+Iniciar servidor: Executar run.bat
+
