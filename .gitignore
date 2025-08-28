@@ -3,6 +3,6 @@ node_modules
 
 # Arquivos de ambiente e de dados
 .env
-db.json
-users.json
-uploads/
+db.json # Se você não estiver usando um disco persistente para ele
+users.json # Se você não estiver usando um disco persistente para ele
+uploads/ # Se você não estiver usando um disco persistente para ele

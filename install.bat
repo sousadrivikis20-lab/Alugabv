@@ -33,7 +33,7 @@ echo.
 
 REM --- 2. Instalar as dependencias do projeto ---
 echo Instalando as dependencias do projeto com 'npm install'. Isso pode levar alguns minutos...
-npm install concurrently
+npm install
 if %errorlevel% neq 0 (
     echo [ERRO] Falha ao instalar as dependencias com 'npm install'.
     echo Verifique sua conexao com a internet e os logs de erro, e tente novamente.

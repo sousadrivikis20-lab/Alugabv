@@ -1,0 +1,119 @@
+[
+  {
+    "nome": "Prédio Ronnivon",
+    "contato": "889988237",
+    "preco": "500",
+    "tipo": "Casa Para Alugar",
+    "coords": {
+      "lat": -5.1237936718777854,
+      "lng": -39.73179817199708
+    },
+    "id": "f28684f9-e55f-4724-a4f7-0f2d2ddadf94",
+    "ownerId": "d58f28e4-7328-4ec3-8c3c-e41cf42c3567",
+    "ownerUsername": "vinicius",
+    "transactionType": "Ambos",
+    "salePrice": 300000,
+    "rentalPrice": 500,
+    "rentalPeriod": "por Mês",
+    "images": [
+      "uploads/imagens-1756217174992-370071911.png"
+    ],
+    "propertyType": "Apartamento"
+  },
+  {
+    "id": "9cfec671-5313-46cc-97ab-bfb4ce48ec0a",
+    "nome": "Fazenda Flores",
+    "contato": "889957854",
+    "preco": "600",
+    "tipo": "Fazenda",
+    "coords": {
+      "lat": -5.106033352658415,
+      "lng": -39.77625846862794
+    },
+    "ownerId": "d58f28e4-7328-4ec3-8c3c-e41cf42c3567",
+    "ownerUsername": "vinicius",
+    "images": [
+      "uploads/imagens-1756217140710-538744229.png"
+    ],
+    "transactionType": "Alugar",
+    "salePrice": null,
+    "rentalPrice": 600,
+    "rentalPeriod": "por Dia",
+    "propertyType": "Fazenda",
+    "descricao": "Cozinha, Área de Lazer, Piscina, Quadra de Beach Tenis e Volei, 2 Quartos."
+  },
+  {
+    "id": "aa18d2ae-2fae-40cb-ab63-204b84985030",
+    "nome": "Eugênia",
+    "contato": "8845757457",
+    "preco": "400 p/ dia",
+    "tipo": "Casa",
+    "coords": {
+      "lat": -5.122425866981786,
+      "lng": -39.72251772880555
+    },
+    "ownerId": "d58f28e4-7328-4ec3-8c3c-e41cf42c3567",
+    "ownerUsername": "vinicius",
+    "images": [
+      "uploads/imagens-1756217219670-253732633.png"
+    ],
+    "transactionType": "Alugar",
+    "salePrice": null,
+    "rentalPrice": 400,
+    "rentalPeriod": "por Dia",
+    "propertyType": "Casa de Piscina"
+  },
+  {
+    "id": "b6756216-4b83-4527-a060-8f37226dd563",
+    "nome": "Casa do Ronni",
+    "contato": "889958685",
+    "transactionType": "Vender",
+    "propertyType": "Casa",
+    "salePrice": 400000,
+    "rentalPrice": null,
+    "rentalPeriod": null,
+    "coords": {
+      "lat": -5.126075121185355,
+      "lng": -39.72578465938569
+    },
+    "ownerId": "d58f28e4-7328-4ec3-8c3c-e41cf42c3567",
+    "ownerUsername": "vinicius",
+    "images": [
+      "uploads/imagens-1756227573957-317580427.jpeg"
+    ]
+  },
+  {
+    "id": "2943157b-7545-498f-afde-05d7b84e828e",
+    "nome": "Ponto Comercial Ronni",
+    "contato": "8895467433",
+    "transactionType": "Alugar",
+    "propertyType": "Ponto Comercial",
+    "salePrice": null,
+    "rentalPrice": 400,
+    "rentalPeriod": "por Mês",
+    "coords": {
+      "lat": -5.123761613984045,
+      "lng": -39.73164796829224
+    },
+    "ownerId": "d58f28e4-7328-4ec3-8c3c-e41cf42c3567",
+    "ownerUsername": "vinicius",
+    "images": []
+  },
+  {
+    "id": "a0b6379b-24eb-4650-992d-fdf73f6ab997",
+    "nome": "Casa Daniele",
+    "contato": "889765475",
+    "transactionType": "Vender",
+    "propertyType": "Casa",
+    "salePrice": 700000,
+    "rentalPrice": null,
+    "rentalPeriod": null,
+    "coords": {
+      "lat": -5.1226716446397855,
+      "lng": -39.72293615341187
+    },
+    "ownerId": "348232e7-e0e3-4bef-9f23-04051f38226b",
+    "ownerUsername": "dani",
+    "images": []
+  }
+]

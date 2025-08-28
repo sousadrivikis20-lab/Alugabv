@@ -1,20 +1,22 @@
 {
   "name": "site-imoveis",
   "version": "1.0.0",
-  "description": "",
-  "main": "script.js",
+  "description": "Site de aluguel de imóveis",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author": "Seu Nome",
   "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^3.0.2",
-    "dotenv": "^17.2.1",
-    "express": "^5.1.0",
-    "express-session": "^1.18.2",
-    "multer": "^2.0.2",
-    "uuid": "^11.1.0"
+    "bcryptjs": "^3.0.2", 
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1"
   }
 }
