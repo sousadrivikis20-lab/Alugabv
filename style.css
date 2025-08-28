@@ -10,19 +10,6 @@
   --border-color: #e0e0e0; /* Cor das bordas */
 }
 
-/* --- Título da Seção de Ações do Usuário --- */
-.user-actions-title {
-  margin-top: 25px;
-  margin-bottom: 15px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 10px;
-}
-
 /* --- Ações do Usuário --- */
 #user-actions {
   display: flex;
@@ -129,7 +116,7 @@ body, html {
 }
 
 /* --- Painéis da Barra Lateral --- */
-#user-panel, #actions-panel {
+#user-panel, #actions-panel, #account-management-section {
   margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid var(--border-color);
@@ -898,23 +885,47 @@ button.loading .spinner {
   gap: 5px; /* Volta para o padrão anterior */
 }
 
+
 /* --- Design Responsivo --- */
 @media (max-width: 768px) {
-  .container {
-    flex-direction: column;
+
+  body, html {
+    overflow: visible; /* Permite rolagem em telas menores */
   }
 
+  .container {
+    flex-direction: column;
+    height: auto; /* Altura automática para permitir rolagem */
+  }
   .sidebar {
     width: 100%;
-    height: auto; /* Altura automática */
-    max-height: 50vh; /* Limita a altura para não ocupar a tela toda */
+    height: auto;
+    max-height: none; /* Remove a altura máxima */
     transform: none;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
+    padding: 20px 15px; /* Padding reduzido para telas menores */
+    overflow-y: visible; /* Remove a rolagem interna da sidebar */
   }
 
   #map-container {
-    height: 100%; /* Ocupa o espaço restante */
+    height: 60vh; /* Altura fixa para o mapa */
+    min-height: 400px; /* Garante uma altura mínima usável */
+    flex-grow: 0; /* Impede que cresça para preencher o espaço */
+  }
+
+  .sidebar header {
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo {
+    font-size: 24px; /* Reduz o tamanho da logo em telas muito pequenas */
+  }
+
+  .tagline {
+    font-size: 13px;
   }
 }
 
@@ -1094,6 +1105,49 @@ button.loading .spinner {
 .popup-actions button svg {
   vertical-align: middle;
   margin-bottom: 0 !important;
+}
+
+/* --- Botão Colapsável (Gerenciar Conta) --- */
+.collapsible-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px 15px;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.collapsible-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.collapsible-btn .arrow-icon {
+  transition: transform 0.3s ease;
+}
+
+.collapsible-btn.active .arrow-icon {
+  transform: rotate(90deg);
+}
+
+/* --- Conteúdo Colapsável --- */
+.collapsible-content {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.4s ease-out, margin-top 0.4s ease-out;
+  margin-top: 0;
+}
+
+.collapsible-content:not(.hidden) {
+  max-height: 500px; /* Um valor alto o suficiente para conter os botões */
+  transition: max-height 0.4s ease-in;
+  margin-top: 15px;
 }
 
 /* --- Estilos para o formulário dentro do modal de ação --- */

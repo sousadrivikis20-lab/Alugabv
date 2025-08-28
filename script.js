@@ -72,6 +72,11 @@ const actionModalForm = document.getElementById('action-modal-form');
 const actionModalConfirmBtn = document.getElementById('action-modal-confirm-btn');
 const actionModalCancelBtn = document.getElementById('action-modal-cancel-btn');
 
+// Elementos de Gerenciamento de Conta
+const accountManagementSection = document.getElementById('account-management-section');
+const toggleAccountActionsBtn = document.getElementById('toggle-account-actions-btn');
+const accountActionsContent = document.getElementById('account-actions-content');
+
 // --- Funções de UI ---
 
 // Notificações Toast
@@ -149,6 +154,7 @@ function updateUIForUser() {
   if (currentUser) {
     guestView.classList.add('hidden');
     userView.classList.remove('hidden');
+    accountManagementSection.classList.remove('hidden');
     welcomeMsg.innerText = `Bem-vindo, ${currentUser.username}!`;
 
     if (currentUser.role === 'owner') {
@@ -163,6 +169,7 @@ function updateUIForUser() {
     guestView.classList.remove('hidden');
     userView.classList.add('hidden');
     actionsPanel.classList.add('hidden');
+    accountManagementSection.classList.add('hidden');
     formImovel.classList.add('hidden');
     propertyInstructions.classList.add('hidden');
     cadastroAtivo = false;
@@ -197,11 +204,12 @@ function filterProperties() {
   Object.values(markers).forEach(marker => {
     const property = marker.propertyData;
     const propertyName = property.nome.toLowerCase();
+    const propertyType = property.propertyType.toLowerCase();
     const propertyTransactionType = property.transactionType.toLowerCase();
     const propertyOwner = property.ownerUsername ? property.ownerUsername.toLowerCase() : '';
 
-    // Verifica se o termo de busca está presente no nome, tipo de transação ou proprietário
-    const matches = propertyName.includes(searchTerm) ||
+    // Verifica se o termo de busca está presente no nome, tipo de imóvel, tipo de transação ou proprietário
+    const matches = propertyName.includes(searchTerm) || propertyType.includes(searchTerm) ||
                     propertyTransactionType.includes(searchTerm) ||
                     propertyOwner.includes(searchTerm);
 
@@ -1006,6 +1014,12 @@ rentalPriceInput.addEventListener('input', () => formatCurrency(rentalPriceInput
 contatoInput.addEventListener('input', () => {
   contatoInput.value = contatoInput.value.replace(/\D/g, '');
 });
+
+toggleAccountActionsBtn.addEventListener('click', () => {
+  toggleAccountActionsBtn.classList.toggle('active');
+  accountActionsContent.classList.toggle('hidden');
+});
+
 
 // --- Definição dos Ícones dos Marcadores no Mapa ---
 function getPropertyMarkerIcon(propertyType) {
