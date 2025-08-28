@@ -2,3 +2,5 @@ Instalar todas as dependências e bibliotecas necessárias: Executar install.bat
 
 Iniciar servidor: Executar run.bat
 
+### Ao inciar o servidor, o navegador abrirá na página do site automaticamente, aguarde.
+
