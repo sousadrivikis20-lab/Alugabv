@@ -16,8 +16,8 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let markers = {};
 let currentUser = null;
 let editingPropertyId = null;
-let propertyIdToDelete = null;
 let cadastroAtivo = false;
+let currentActionConfirmCallback = null; // Para o modal de ação genérico
 let locationChangeActive = false;
 let newPropertyCoords = null;
 let tempLocationMarker = null;
@@ -64,6 +64,13 @@ const confirmationModal = document.getElementById('confirmation-modal');
 const modalMessage = document.getElementById('modal-message');
 const modalConfirmBtn = document.getElementById('modal-confirm-btn');
 const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
+// Elementos do Modal de Ação (para editar nome/senha)
+const actionModal = document.getElementById('action-modal');
+const actionModalTitle = document.getElementById('action-modal-title');
+const actionModalForm = document.getElementById('action-modal-form');
+const actionModalConfirmBtn = document.getElementById('action-modal-confirm-btn');
+const actionModalCancelBtn = document.getElementById('action-modal-cancel-btn');
 
 // --- Funções de UI ---
 
@@ -687,38 +694,167 @@ async function handleEditSave() {
 }
 
 async function handleDelete(id) {
-  showConfirmationModal(id, 'Tem certeza que deseja remover este imóvel?');
+  const onConfirm = async () => {
+    try {
+      await apiCall(`/api/imoveis/${id}`, { method: 'DELETE' });
+      map.removeLayer(markers[id]);
+      delete markers[id];
+      showToast('Imóvel removido com sucesso.', 'success');
+    } catch (error) {
+      showToast(`Erro ao remover: ${error.message}`, 'error');
+      throw error; // Propaga o erro para ser pego pelo handler do modal
+    }
+  };
+
+  showConfirmationModal('Tem certeza que deseja remover este imóvel?', onConfirm);
 }
 
 // --- Funções do Modal de Confirmação ---
-function showConfirmationModal(id, message) {
-  propertyIdToDelete = id;
-  modalMessage.textContent = message || 'Tem certeza que deseja executar esta ação?';
+let confirmationCallback = null;
+
+function showConfirmationModal(message, onConfirm) {
+  confirmationCallback = onConfirm;
+  modalMessage.innerHTML = message || 'Tem certeza que deseja executar esta ação?';
   confirmationModal.classList.remove('hidden');
 }
 
 function hideConfirmationModal() {
   confirmationModal.classList.add('hidden');
-  propertyIdToDelete = null;
+  confirmationCallback = null;
 }
 
-async function confirmDelete() {
-  if (!propertyIdToDelete) return;
+async function handleConfirmAction() {
+  if (!confirmationCallback) return;
 
-  const id = propertyIdToDelete;
   toggleLoading(modalConfirmBtn, true);
   try {
-    await apiCall(`/api/imoveis/${id}`, { method: 'DELETE' });
-    map.removeLayer(markers[id]);
-    delete markers[id];
-    showToast('Imóvel removido com sucesso.', 'success');
+    await confirmationCallback();
   } catch (error) {
-    showToast(`Erro ao remover: ${error.message}`, 'error');
+    // O callback já deve ter mostrado um toast específico.
+    // O console.error é para debug.
+    console.error("Erro na ação de confirmação:", error);
   } finally {
     hideConfirmationModal();
     toggleLoading(modalConfirmBtn, false);
   }
 }
+
+// --- Funções do Modal de Ação (Editar Nome/Senha) ---
+function showActionModal(title, formHtml, onConfirm) {
+  actionModalTitle.textContent = title;
+  actionModalForm.innerHTML = formHtml;
+  currentActionConfirmCallback = onConfirm;
+  actionModal.classList.remove('hidden');
+}
+
+function hideActionModal() {
+  actionModal.classList.add('hidden');
+  actionModalForm.innerHTML = '';
+  currentActionConfirmCallback = null;
+}
+
+async function handleActionConfirm() {
+  if (!currentActionConfirmCallback) return;
+
+  const form = actionModalForm;
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData.entries());
+
+  toggleLoading(actionModalConfirmBtn, true);
+  try {
+    // Executa o callback passando os dados do formulário
+    await currentActionConfirmCallback(data);
+  } finally {
+    // O callback é responsável por fechar o modal ou mostrar erros
+    toggleLoading(actionModalConfirmBtn, false);
+  }
+}
+
+// Função para alterar o nome do usuário
+async function handleChangeName() {
+  const formHtml = `
+    <div class="modal-form-group">
+      <label for="newNameInput">Novo nome de usuário</label>
+      <input type="text" id="newNameInput" name="newName" value="${currentUser.username}" required>
+    </div>`;
+
+  showActionModal('Alterar Nome', formHtml, async (formData) => {
+    if (!formData.newName) {
+      showToast('O nome não pode ser vazio.', 'error');
+      return;
+    }
+    try {
+      const result = await apiCall(`/api/users/${currentUser.id}/name`, { method: 'PUT', body: { newName: formData.newName.trim() } });
+      showToast(result.message, 'success');
+      currentUser.username = result.newName; // Usa o nome retornado pelo servidor
+      updateUIForUser();
+      // Recarrega os imóveis para atualizar os popups com o novo nome de proprietário
+      loadInitialProperties();
+      hideActionModal(); // Fecha o modal em caso de sucesso
+    } catch (error) {
+      showToast(`Erro ao alterar nome: ${error.message}`, 'error');
+    }
+  });
+}
+
+// Função para alterar a senha do usuário
+async function handleChangePassword() {
+  const formHtml = `
+    <div class="modal-form-group">
+      <label for="currentPasswordInput">Senha Atual</label>
+      <input type="password" id="currentPasswordInput" name="currentPassword" required autocomplete="current-password">
+    </div>
+    <div class="modal-form-group">
+      <label for="newPasswordInput">Nova Senha</label>
+      <input type="password" id="newPasswordInput" name="newPassword" required autocomplete="new-password">
+    </div>`;
+
+  showActionModal('Alterar Senha', formHtml, async (formData) => {
+    if (!formData.currentPassword || !formData.newPassword) {
+      showToast('Ambos os campos de senha são obrigatórios.', 'error');
+      return;
+    }
+    try {
+      const result = await apiCall(`/api/users/${currentUser.id}/password`, { method: 'PUT', body: formData });
+      showToast(result.message, 'success');
+      hideActionModal(); // Fecha o modal em caso de sucesso
+    } catch (error) {
+      showToast(`Erro ao alterar senha: ${error.message}`, 'error');
+    }
+  });
+}
+
+// Função para excluir o usuário
+async function handleDeleteUser() {
+  const onConfirm = async () => {
+    try {
+      const data = await apiCall(`/api/users/${currentUser.id}`, { method: 'DELETE' });
+      showToast(data.message, 'success');
+      currentUser = null;
+      updateUIForUser();
+      loadInitialProperties(); // Recarrega para remover botões de edição
+    } catch (error) {
+      showToast(`Erro ao excluir conta: ${error.message}`, 'error');
+      throw error; // Propaga para o handler do modal
+    }
+  };
+
+  // Define a mensagem de confirmação, adicionando um aviso para proprietários
+  let confirmationMessage = 'Tem certeza que deseja excluir sua conta? Esta ação não pode ser desfeita.';
+  if (currentUser && currentUser.role === 'owner') {
+    confirmationMessage += '<br><br><strong>AVISO:</strong> Todos os seus imóveis cadastrados também serão excluídos.';
+  }
+
+  showConfirmationModal(
+    confirmationMessage,
+    onConfirm
+  );
+}
+
+// Adicionar eventos aos botões
+document.getElementById('change-name-btn').addEventListener('click', handleChangeName);
+document.getElementById('change-password-btn').addEventListener('click', handleChangePassword);
+document.getElementById('delete-user-btn').addEventListener('click', handleDeleteUser);
 
 // --- Funções de Autenticação ---
 async function checkSession() {
@@ -833,6 +969,8 @@ function handleTransactionTypeChange() {
     salePriceGroup.classList.remove('hidden');
   }
   if (type === 'Alugar' || type === 'Ambos') {
+    // A linha abaixo continha um erro de sintaxe que quebrava o script.
+    // O event listener do campo de contato foi movido para uma área global para melhor performance.
     rentalPriceGroup.classList.remove('hidden');
     rentalPeriodGroup.classList.remove('hidden');
   }
@@ -864,6 +1002,10 @@ searchInput.addEventListener('input', filterProperties); // Listener para o camp
 transactionTypeSelect.addEventListener('change', handleTransactionTypeChange);
 salePriceInput.addEventListener('input', () => formatCurrency(salePriceInput));
 rentalPriceInput.addEventListener('input', () => formatCurrency(rentalPriceInput));
+// Garante que o campo de WhatsApp aceite apenas números
+contatoInput.addEventListener('input', () => {
+  contatoInput.value = contatoInput.value.replace(/\D/g, '');
+});
 
 // --- Definição dos Ícones dos Marcadores no Mapa ---
 function getPropertyMarkerIcon(propertyType) {
@@ -934,7 +1076,7 @@ function getPropertyMarkerIcon(propertyType) {
 }
 
 // Listeners do Modal
-modalConfirmBtn.addEventListener('click', confirmDelete);
+modalConfirmBtn.addEventListener('click', handleConfirmAction);
 modalCancelBtn.addEventListener('click', hideConfirmationModal);
 confirmationModal.addEventListener('click', (e) => {
     // Fecha o modal se o clique for no overlay (fundo)
@@ -943,12 +1085,11 @@ confirmationModal.addEventListener('click', (e) => {
     }
 });
 
-// Listeners do Modal
-modalConfirmBtn.addEventListener('click', confirmDelete);
-modalCancelBtn.addEventListener('click', hideConfirmationModal);
-confirmationModal.addEventListener('click', (e) => {
-    // Fecha o modal se o clique for no overlay (fundo)
-    if (e.target === confirmationModal) {
-        hideConfirmationModal();
-    }
+// Listeners do Modal de Ação
+actionModalConfirmBtn.addEventListener('click', handleActionConfirm);
+actionModalCancelBtn.addEventListener('click', hideActionModal);
+actionModal.addEventListener('click', (e) => {
+  if (e.target === actionModal) {
+    hideActionModal();
+  }
 });

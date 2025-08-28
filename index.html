@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 <body>
-
   <div class="container">
     <aside class="sidebar">
       <header>
@@ -50,7 +49,7 @@
           <form id="register-form" class="auth-form hidden">
             <input type="text" id="register-username" placeholder="Usuário" required aria-label="Nome de usuário para registro">
             <input type="password" id="register-password" placeholder="Senha" required aria-label="Senha para registro">
-            <select id="register-role" aria-label="Tipo de conta"><option value="user">Sou um Cliente</option><option value="owner">Sou um Proprietário</option></select>
+            <select id="register-role" aria-label="Tipo de conta"><option value="user">Sou apenas Comprador(a)</option><option value="owner">Sou Proprietário(a)</option></select>
             <button type="submit"><span>Registrar</span></button>
           </form>
         </div>
@@ -65,6 +64,29 @@
                 <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
               </svg>
               <span>Sair</span>
+            </button>
+          </div>
+          <h4 class="user-actions-title">Gerenciar Conta</h4>
+          <!-- Botões para ações do usuário -->
+          <div id="user-actions">
+            <button id="change-name-btn" class="secondary-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+                <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/>
+              </svg>
+              <span>Alterar Nome</span>
+            </button>
+            <button id="change-password-btn" class="secondary-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-key-fill" viewBox="0 0 16 16">
+                <path d="M3 8a5 5 0 1 1 9.9 1h.6a1.5 1.5 0 0 1 0 3h-.5v.5a1.5 1.5 0 0 1-3 0V12H8v.5a1.5 1.5 0 0 1-3 0V12H3a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1h.1A5.002 5.002 0 0 1 3 8zm5-4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
+              </svg>
+              <span>Alterar Senha</span>
+            </button>
+            <button id="delete-user-btn" class="danger-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash-fill" viewBox="0 0 16 16">
+                <path d="M2.5 1a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1H15a1 1 0 0 1 0 2h-1v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3H1a1 1 0 0 1 0-2h1.5zM5.5 5a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 1 0v-7a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 1 0v-7a.5.5 0 0 0-.5-.5zm3 .5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0v-7z"/>
+              </svg>
+              <span>Excluir Conta</span>
             </button>
           </div>
         </div>
@@ -219,13 +241,31 @@
     </div>
   </div>
 
+  <!-- Modal de Ação (para editar nome/senha) -->
+  <div id="action-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3 id="action-modal-title" style="margin-bottom: 20px; font-size: 22px;">Título da Ação</h3>
+      <form id="action-modal-form" onsubmit="return false;"></form>
+      <div class="modal-actions" style="margin-top: 20px;">
+        <button id="action-modal-cancel-btn" class="secondary-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+          </svg>
+          <span>Cancelar</span>
+        </button>
+        <button id="action-modal-confirm-btn" class="confirm-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg" viewBox="0 0 16 16">
+            <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/>
+          </svg>
+          <span>Confirmar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Container para Notificações Toast -->
   <div id="toast-container"></div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="script.js"></script>
-</body>
-</html>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="script.js"></script>
 </body>

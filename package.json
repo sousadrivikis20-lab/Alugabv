@@ -11,8 +11,7 @@
   "author": "Seu Nome",
   "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^3.0.2", 
-    "body-parser": "^1.20.2",
+    "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-session": "^1.18.0",

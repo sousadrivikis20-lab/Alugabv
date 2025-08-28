@@ -283,6 +283,135 @@ app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res
     }
 });
 
+// --- Rotas de Gerenciamento de Usuário ---
+
+// Rota para excluir usuário
+app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Validação de segurança: o usuário só pode excluir a própria conta
+        if (req.session.user.id !== id) {
+            return res.status(403).json({ message: 'Você não tem permissão para excluir esta conta.' });
+        }
+
+        const users = await dataManager.readUsers();
+        const userIndex = users.findIndex(user => user.id === id);
+        if (userIndex === -1) {
+            return res.status(404).json({ message: 'Usuário não encontrado.' });
+        }
+
+        // Se o usuário for um proprietário, encontre e remova seus imóveis e imagens
+        if (users[userIndex].role === 'owner') {
+            const propertiesData = await dataManager.readImoveis();
+            const propertiesToKeep = [];
+            const propertiesToRemove = propertiesData.imoveis.filter(p => {
+                if (p.ownerId === id) {
+                    return true;
+                }
+                propertiesToKeep.push(p);
+                return false;
+            });
+
+            // Deleta as imagens dos imóveis removidos
+            propertiesToRemove.forEach(property => {
+                if (property.images && property.images.length > 0) {
+                    property.images.forEach(imagePath => {
+                        require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
+                            if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
+                        });
+                    });
+                }
+            });
+
+            // Salva a lista de imóveis atualizada
+            await dataManager.writeImoveis({ imoveis: propertiesToKeep });
+        }
+
+        // Remove o usuário
+        users.splice(userIndex, 1);
+        await dataManager.writeUsers(users);
+
+        // Destrói a sessão do usuário para fazer o logout
+        req.session.destroy(err => {
+            if (err) {
+                console.error("Erro ao destruir sessão após exclusão de usuário:", err);
+            }
+            res.clearCookie('connect.sid');
+            res.json({ message: 'Usuário excluído com sucesso.' });
+        });
+    } catch (error) {
+        console.error('Erro ao excluir usuário:', error);
+        res.status(500).json({ message: 'Erro interno ao excluir usuário.' });
+    }
+});
+
+// Rota para atualizar nome do usuário
+app.put('/api/users/:id/name', isAuthenticated, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { newName } = req.body;
+
+        // Validação de segurança: o usuário só pode alterar o próprio nome
+        if (req.session.user.id !== id) {
+            return res.status(403).json({ message: 'Você não tem permissão para alterar este nome.' });
+        }
+
+        if (!newName || newName.trim().length < 3) {
+            return res.status(400).json({ message: 'O novo nome é obrigatório e deve ter pelo menos 3 caracteres.' });
+        }
+
+        const users = await dataManager.readUsers();
+        const user = users.find(user => user.id === id);
+        if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+        user.username = newName.trim();
+        req.session.user.username = newName.trim(); // Atualiza o nome na sessão ativa
+
+        // Atualiza o nome do proprietário em todos os seus imóveis para manter a consistência
+        const propertiesData = await dataManager.readImoveis();
+        propertiesData.imoveis.forEach(p => {
+            if (p.ownerId === id) {
+                p.ownerUsername = newName.trim();
+            }
+        });
+
+        await dataManager.writeUsers(users);
+        await dataManager.writeImoveis(propertiesData);
+
+        res.json({ message: 'Nome atualizado com sucesso.', newName: user.username });
+    } catch (error) {
+        console.error('Erro ao atualizar nome do usuário:', error);
+        res.status(500).json({ message: 'Erro interno ao atualizar nome.' });
+    }
+});
+
+// Rota para atualizar senha do usuário
+app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { currentPassword, newPassword } = req.body;
+
+        if (req.session.user.id !== id) return res.status(403).json({ message: 'Você não tem permissão para alterar esta senha.' });
+        if (!currentPassword || !newPassword) return res.status(400).json({ message: 'A senha atual e a nova senha são obrigatórias.' });
+
+        const users = await dataManager.readUsers();
+        const user = users.find(user => user.id === id);
+        if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isPasswordValid) return res.status(401).json({ message: 'Senha atual incorreta.' });
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await dataManager.writeUsers(users);
+
+        res.json({ message: 'Senha atualizada com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao atualizar senha do usuário:', error);
+        res.status(500).json({ message: 'Erro interno ao atualizar senha.' });
+    }
+});
+
 // Servir arquivos estáticos (HTML, CSS, JS do cliente) - DEVE VIR DEPOIS DAS ROTAS DA API
 // ATENÇÃO: Servir o diretório raiz é um risco de segurança, pois expõe arquivos como server.js.
 // A melhor prática é mover index.html, script.js e style.css para uma pasta 'public' e usar app.use(express.static('public'))

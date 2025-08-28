@@ -10,6 +10,58 @@
   --border-color: #e0e0e0; /* Cor das bordas */
 }
 
+/* --- Título da Seção de Ações do Usuário --- */
+.user-actions-title {
+  margin-top: 25px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+/* --- Ações do Usuário --- */
+#user-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#user-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+#user-actions .secondary-btn {
+  background-color: transparent;
+  color: var(--accent-green);
+  border: 1px solid var(--accent-green);
+}
+
+#user-actions .secondary-btn:hover {
+  background-color: var(--accent-green);
+  color: #ffffff;
+}
+
+#user-actions .danger-btn {
+  background-color: #e74c3c; /* Vermelho mais harmônico */
+}
+
+#user-actions .danger-btn:hover {
+  background-color: #c0392b; /* Sombra mais escura para hover */
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -600,6 +652,51 @@ form#form-imovel {
   gap: 15px;
 }
 
+/* --- Estilos dos Botões dos Modais --- */
+
+/* Base para todos os botões nos modais, para garantir consistência */
+.modal-actions button {
+  padding: 10px 24px;
+  border: 1px solid transparent;
+}
+
+/* Botão de confirmação (Verde) */
+.modal-actions .confirm-btn {
+  background-color: var(--accent-green);
+  color: #ffffff;
+  border-color: var(--accent-green);
+}
+
+.modal-actions .confirm-btn:hover {
+  background-color: var(--accent-green-hover);
+  border-color: var(--accent-green-hover);
+}
+
+/* Botão de perigo (Vermelho) - Sobrescreve o .danger-btn genérico */
+.modal-actions .danger-btn {
+  background-color: #e74c3c; /* Mesmo vermelho das ações do usuário */
+  color: #ffffff;
+  border-color: #e74c3c;
+}
+
+.modal-actions .danger-btn:hover {
+  background-color: #c0392b;
+  border-color: #c0392b;
+}
+
+/* Botão secundário/cancelar (Estilo "outline") - Sobrescreve o .secondary-btn genérico */
+.modal-actions .secondary-btn {
+  background-color: #ffffff;
+  color: var(--text-muted);
+  border-color: var(--border-color);
+}
+
+.modal-actions .secondary-btn:hover {
+  background-color: #f8f9fa; /* Cinza bem claro no hover */
+  color: var(--text-dark);
+  border-color: #ced4da;
+}
+
 /* --- Estilos de Carregamento (Spinner) --- */
 .spinner {
   width: 20px;
@@ -997,6 +1094,36 @@ button.loading .spinner {
 .popup-actions button svg {
   vertical-align: middle;
   margin-bottom: 0 !important;
+}
+
+/* --- Estilos para o formulário dentro do modal de ação --- */
+.modal-form-group {
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+.modal-form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.modal-form-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 16px;
+  font-family: 'Poppins', sans-serif;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.modal-form-group input:focus {
+  outline: none;
+  border-color: var(--accent-green);
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
 }
 
 /* Ícone do WhatsApp alinhado com texto */
