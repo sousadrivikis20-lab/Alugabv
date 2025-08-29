@@ -152,7 +152,57 @@ async function writeImoveis(data) {
   }
 }
 
-// ... rest of the code (readUsers, writeUsers) stays the same ...
+async function readUsers() {
+  try {
+    const result = await pool.query(`
+      SELECT id, username, password, role 
+      FROM users;
+    `);
+    return result.rows;
+  } catch (err) {
+    console.error('Erro ao ler usuários:', err);
+    throw err;
+  }
+}
+
+async function writeUsers(users) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Se estamos atualizando apenas um usuário
+    if (users.length === 1) {
+      const user = users[0];
+      await client.query(`
+        UPDATE users 
+        SET username = $1, password = $2, role = $3
+        WHERE id = $4;
+        
+        INSERT INTO users (id, username, password, role)
+        SELECT $4, $1, $2, $3
+        WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $4);
+      `, [user.username, user.password, user.role, user.id]);
+    } else {
+      // Se estamos reescrevendo todos os usuários
+      await client.query('DELETE FROM users');
+      
+      for (const user of users) {
+        await client.query(`
+          INSERT INTO users (id, username, password, role)
+          VALUES ($1, $2, $3, $4)
+        `, [user.id, user.username, user.password, user.role]);
+      }
+    }
+    
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao escrever usuários:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
 module.exports = {
   initDB,
@@ -162,4 +212,4 @@ module.exports = {
   writeImoveis,
   dataDir: path.join(process.cwd(), 'data')
 };
-    
+
