@@ -430,8 +430,30 @@ app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
 app.use(express.static(path.join(__dirname)));
 
 // --- Função para iniciar o servidor de forma segura ---
+async function createSessionTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "session" (
+        "sid" varchar NOT NULL COLLATE "default",
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL,
+        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+    `);
+    console.log('Tabela de sessão verificada/criada com sucesso');
+  } catch (err) {
+    console.error('Erro ao criar tabela de sessão:', err);
+    throw err;
+  }
+}
+
+// Modifique a função startServer para incluir a criação da tabela
 async function startServer() {
     try {
+        // Cria a tabela de sessão antes de inicializar o banco
+        await createSessionTable();
+        
         // Inicializa o banco de dados
         await dataManager.initDB();
         console.log('Banco de dados inicializado com sucesso.');
@@ -459,8 +481,6 @@ async function startServer() {
     } catch (err) {
         console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
         process.exit(1);
-// Inicia a aplicação
-startServer();
     }
 }
 
