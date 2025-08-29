@@ -229,96 +229,76 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
 app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imagens', 5), async (req, res) => {
     try {
         const { id } = req.params;
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
-        const propertyIndex = properties.findIndex(p => p.id === id);
+        const property = {
+            id: id,
+            nome: req.body.nome,
+            descricao: req.body.descricao,
+            contato: req.body.contato,
+            coords: JSON.parse(req.body.coords || '{}'),
+            ownerId: req.session.user.id,
+            ownerUsername: req.session.user.username,
+            transactionType: req.body.transactionType,
+            propertyType: req.body.propertyType,
+            salePrice: req.body.salePrice ? parseFloat(req.body.salePrice) : null,
+            rentalPrice: req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null,
+            rentalPeriod: req.body.rentalPeriod || null
+        };
 
-        if (propertyIndex === -1) {
-            return res.status(404).json({ message: 'Imóvel não encontrado.' });
-        }
+        // Upload das novas imagens para o Cloudinary
+        const uploadPromises = req.files ? req.files.map(file => {
+            return new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { folder: 'alugabv' },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result.secure_url);
+                    }
+                );
+                uploadStream.end(file.buffer);
+            });
+        }) : [];
 
-        const propertyToUpdate = properties[propertyIndex];
+        const newImageUrls = await Promise.all(uploadPromises);
 
-        if (req.body.nome !== undefined) propertyToUpdate.nome = req.body.nome;
-        if (req.body.descricao !== undefined) propertyToUpdate.descricao = req.body.descricao;
-        if (req.body.contato !== undefined) propertyToUpdate.contato = req.body.contato;
-        if (req.body.transactionType !== undefined) propertyToUpdate.transactionType = req.body.transactionType;
-        if (req.body.propertyType !== undefined) propertyToUpdate.propertyType = req.body.propertyType;
-        if (req.body.coords) propertyToUpdate.coords = JSON.parse(req.body.coords);
-        if (req.body.salePrice !== undefined) propertyToUpdate.salePrice = req.body.salePrice ? parseFloat(req.body.salePrice) : null;
-        if (req.body.rentalPrice !== undefined) propertyToUpdate.rentalPrice = req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null;
-        if (req.body.rentalPeriod !== undefined) propertyToUpdate.rentalPeriod = req.body.rentalPeriod || null;
+        // Combina imagens existentes com novas imagens
+        const existingImages = req.property.images || [];
+        property.images = [...existingImages, ...newImageUrls];
 
-        if (req.files && req.files.length > 0) {
-            const newImages = req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/"));
-            propertyToUpdate.images = [...(propertyToUpdate.images || []), ...newImages];
-        }
+        // Atualiza o imóvel no banco
+        await dataManager.writeImoveis({ imoveis: [property] });
 
-        properties[propertyIndex] = propertyToUpdate;
-        await dataManager.writeImoveis({ imoveis: properties });
-
-        res.json({ message: 'Imóvel atualizado com sucesso!', property: propertyToUpdate });
+        res.json({ 
+            message: 'Imóvel atualizado com sucesso!', 
+            property: property 
+        });
     } catch (error) {
         console.error('Erro ao atualizar imóvel:', error);
         res.status(500).json({ message: 'Ocorreu um erro interno ao atualizar o imóvel.' });
     }
 });
 
-app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { imagePath } = req.body;
-
-        if (!imagePath) {
-            return res.status(400).json({ message: 'Caminho da imagem é obrigatório.' });
-        }
-
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
-        const propertyIndex = properties.findIndex(p => p.id === id);
-
-        if (propertyIndex === -1) {
-            return res.status(404).json({ message: 'Imóvel não encontrado.' });
-        }
-
-        const propertyToUpdate = properties[propertyIndex];
-        propertyToUpdate.images = propertyToUpdate.images.filter(img => img !== imagePath);
-
-        require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
-            if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
-        });
-
-        properties[propertyIndex] = propertyToUpdate;
-        await dataManager.writeImoveis({ imoveis: properties });
-
-        res.json({ message: 'Imagem removida com sucesso!', property: propertyToUpdate });
-    } catch (error) {
-        console.error('Erro ao remover imagem do imóvel:', error);
-        res.status(500).json({ message: 'Ocorreu um erro interno ao remover a imagem.' });
-    }
-});
-
 app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res) => {
     try {
         const { id } = req.params;
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
-        const propertyIndex = properties.findIndex(p => p.id === id);
-
-        if (propertyIndex === -1) {
-            return res.status(404).json({ message: 'Imóvel não encontrado para exclusão.' });
-        }
-
+        
+        // Primeiro remove as imagens do Cloudinary
         if (req.property.images && req.property.images.length > 0) {
-            req.property.images.forEach(imagePath => {
-                require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
-                    if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
-                });
-            });
+            for (const imageUrl of req.property.images) {
+                try {
+                    // Extrai o publicId da URL do Cloudinary
+                    const publicId = imageUrl.split('/').pop().split('.')[0];
+                    await cloudinary.uploader.destroy(`alugabv/${publicId}`);
+                } catch (err) {
+                    console.error('Erro ao deletar imagem do Cloudinary:', err);
+                }
+            }
         }
 
-        properties.splice(propertyIndex, 1);
-        await dataManager.writeImoveis({ imoveis: properties });
+        // Marca o imóvel para deleção
+        await dataManager.writeImoveis({
+            imoveis: [{ id, isDeleted: true }]
+        });
+
         res.json({ message: 'Imóvel removido com sucesso.' });
     } catch (error) {
         console.error('Erro ao remover imóvel:', error);
