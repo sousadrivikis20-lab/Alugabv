@@ -436,34 +436,31 @@ async function startServer() {
         await dataManager.initDB();
         console.log('Banco de dados inicializado com sucesso.');
 
-        // Inicia o servidor
-        app.listen(PORT, () => {
+        // Inicia o servidor com tratamento de erro
+        const server = app.listen(PORT, () => {
             console.log(`Servidor rodando na porta ${PORT}`);
+        });
+
+        server.on('error', (error) => {
+            if (error.code === 'EADDRINUSE') {
+                console.error(`Porta ${PORT} já está em uso. Tentando outra porta...`);
+                server.close();
+                // Tenta uma porta diferente
+                const newPort = parseInt(PORT) + 1;
+                app.listen(newPort, () => {
+                    console.log(`Servidor rodando na nova porta ${newPort}`);
+                });
+            } else {
+                console.error('Erro ao iniciar servidor:', error);
+                process.exit(1);
+            }
         });
 
     } catch (err) {
         console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
         process.exit(1);
-    }
-}
-
 // Inicia a aplicação
 startServer();
-// --- Função para iniciar o servidor de forma segura ---
-async function startServer() {
-    try {
-        // Inicializa o banco de dados
-        await dataManager.initDB();
-        console.log('Banco de dados inicializado com sucesso.');
-
-        // Inicia o servidor
-        app.listen(PORT, () => {
-            console.log(`Servidor rodando na porta ${PORT}`);
-        });
-
-    } catch (err) {
-        console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
-        process.exit(1);
     }
 }
 
