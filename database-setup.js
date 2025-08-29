@@ -7,7 +7,7 @@ async function setupDatabase() {
         host: 'localhost',
         port: 5432,
         user: 'postgres',
-        password: 'sua_senha_aqui', // Altere para sua senha do PostgreSQL
+        password: 'skatevini', // Altere para sua senha do PostgreSQL
         database: 'postgres'
     });
 
