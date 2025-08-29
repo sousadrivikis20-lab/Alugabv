@@ -66,64 +66,47 @@ async function readImoveis() {
 }
 
 async function writeImoveis(data) {
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        
-        if (data.imoveis && data.imoveis.length === 1) {
-            const property = data.imoveis[0];
-            
-            if (property.isDeleted) {
-                // Deleta o imóvel
-                await client.query('DELETE FROM properties WHERE id = $1', [property.id]);
-            } else {
-                // Atualiza ou insere o imóvel
-                await client.query(`
-                    INSERT INTO properties (
-                        id, nome, descricao, contato, coords, 
-                        owner_id, owner_username, transaction_type, 
-                        property_type, sale_price, rental_price, 
-                        rental_period, images
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-                    ON CONFLICT (id) DO UPDATE SET
-                        nome = COALESCE($2, properties.nome),
-                        descricao = COALESCE($3, properties.descricao),
-                        contato = COALESCE($4, properties.contato),
-                        coords = COALESCE($5, properties.coords),
-                        owner_id = COALESCE($6, properties.owner_id),
-                        owner_username = COALESCE($7, properties.owner_username),
-                        transaction_type = COALESCE($8, properties.transaction_type),
-                        property_type = COALESCE($9, properties.property_type),
-                        sale_price = COALESCE($10, properties.sale_price),
-                        rental_price = COALESCE($11, properties.rental_price),
-                        rental_period = COALESCE($12, properties.rental_period),
-                        images = COALESCE($13, properties.images)
-                `, [
-                    property.id,
-                    property.nome,
-                    property.descricao,
-                    property.contato,
-                    property.coords,
-                    property.ownerId,
-                    property.ownerUsername,
-                    property.transactionType,
-                    property.propertyType,
-                    property.salePrice,
-                    property.rentalPrice,
-                    property.rentalPeriod,
-                    property.images
-                ]);
-            }
-        }
-        
-        await client.query('COMMIT');
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Erro ao escrever imóveis:', err);
-        throw err;
-    } finally {
-        client.release();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    if (data.imoveis) {
+      await client.query('DELETE FROM properties');
+      
+      for (const property of data.imoveis) {
+        await client.query(`
+          INSERT INTO properties (
+            id, nome, descricao, contato, coords, 
+            owner_id, owner_username, transaction_type, 
+            property_type, sale_price, rental_price, 
+            rental_period, images
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        `, [
+          property.id,
+          property.nome,
+          property.descricao,
+          property.contato,
+          property.coords,
+          property.ownerId,
+          property.ownerUsername,
+          property.transactionType || 'Vender',
+          property.propertyType || 'Casa',
+          property.salePrice,
+          property.rentalPrice,
+          property.rentalPeriod,
+          property.images || []
+        ]);
+      }
     }
+    
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao escrever imóveis:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function readUsers() {
