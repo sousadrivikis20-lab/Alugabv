@@ -1,11 +1,15 @@
 const express = require('express');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const dataManager = require('./data-manager-pg'); // Alterado para versão PostgreSQL
 require('dotenv').config();
+const RedisStore = require('connect-redis').default
+const { createClient } = require('redis')
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,16 +42,44 @@ if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_s
     process.exit(1);
 }
 
+// Configuração do Redis
+let redisClient
+let sessionStore
+
+if (process.env.NODE_ENV === 'production') {
+    // Configuração do Redis para produção (Render)
+    redisClient = createClient({
+        url: process.env.REDIS_URL,
+        socket: {
+            tls: true,
+            rejectUnauthorized: false
+        }
+    });
+} else {
+    // Configuração do Redis para desenvolvimento local
+    redisClient = createClient();
+}
+
+redisClient.on('error', err => console.log('Redis Client Error', err));
+redisClient.on('connect', () => console.log('Connected to Redis successfully'));
+
+// Initialize store
+sessionStore = new RedisStore({ client: redisClient });
+
 // Configuração da Sessão
 app.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-        secure: process.env.NODE_ENV === 'production', // Use cookies seguros em produção (HTTPS)
-        httpOnly: true, 
-        maxAge: 24 * 60 * 60 * 1000 // 1 dia
-    }
+  store: new pgSession({
+    pool,
+    tableName: 'session' // Cria uma tabela chamada session para armazenar as sessões
+  }),
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production', // Use cookies seguros em produção (HTTPS)
+    httpOnly: true, 
+    maxAge: 24 * 60 * 60 * 1000 // 1 dia
+  }
 }));
 
 // --- Middlewares de Autenticação ---
