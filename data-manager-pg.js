@@ -70,50 +70,54 @@ async function writeImoveis(data) {
   try {
     await client.query('BEGIN');
     
-    // Se temos apenas um imóvel para atualizar
-    if (data.imoveis.length === 1) {
+    // Se temos apenas um imóvel para atualizar ou remover
+    if (data.imoveis && data.imoveis.length === 1) {
       const property = data.imoveis[0];
-      await client.query(`
-        UPDATE properties 
-        SET nome = $1,
-            descricao = $2,
-            contato = $3,
-            coords = $4,
-            owner_id = $5,
-            owner_username = $6,
-            transaction_type = $7,
-            property_type = $8,
-            sale_price = $9,
-            rental_price = $10,
-            rental_period = $11,
-            images = $12
-        WHERE id = $13;
-        
-        INSERT INTO properties (
-          id, nome, descricao, contato, coords, 
-          owner_id, owner_username, transaction_type, 
-          property_type, sale_price, rental_price, 
-          rental_period, images
-        )
-        SELECT $13, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
-        WHERE NOT EXISTS (SELECT 1 FROM properties WHERE id = $13);
-      `, [
-        property.nome,
-        property.descricao,
-        property.contato,
-        property.coords,
-        property.ownerId,
-        property.ownerUsername,
-        property.transactionType || 'Vender',
-        property.propertyType || 'Casa',
-        property.salePrice,
-        property.rentalPrice,
-        property.rentalPeriod,
-        property.images || [],
-        property.id
-      ]);
-    } else {
-      // Se estamos atualizando vários imóveis
+      
+      if (property.isDeleted) {
+        // Remove o imóvel
+        await client.query('DELETE FROM properties WHERE id = $1', [property.id]);
+      } else {
+        // Atualiza ou insere o imóvel
+        await client.query(`
+          INSERT INTO properties (
+            id, nome, descricao, contato, coords, 
+            owner_id, owner_username, transaction_type, 
+            property_type, sale_price, rental_price, 
+            rental_period, images
+          ) 
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          ON CONFLICT (id) DO UPDATE SET
+            nome = EXCLUDED.nome,
+            descricao = EXCLUDED.descricao,
+            contato = EXCLUDED.contato,
+            coords = EXCLUDED.coords,
+            owner_id = EXCLUDED.owner_id,
+            owner_username = EXCLUDED.owner_username,
+            transaction_type = EXCLUDED.transaction_type,
+            property_type = EXCLUDED.property_type,
+            sale_price = EXCLUDED.sale_price,
+            rental_price = EXCLUDED.rental_price,
+            rental_period = EXCLUDED.rental_period,
+            images = EXCLUDED.images
+        `, [
+          property.id,
+          property.nome,
+          property.descricao,
+          property.contato,
+          property.coords,
+          property.ownerId,
+          property.ownerUsername,
+          property.transactionType || 'Vender',
+          property.propertyType || 'Casa',
+          property.salePrice,
+          property.rentalPrice,
+          property.rentalPeriod,
+          property.images || []
+        ]);
+      }
+    } else if (data.imoveis) {
+      // Se estamos atualizando vários imóveis, mantém o código existente
       await client.query('DELETE FROM properties');
       
       for (const property of data.imoveis) {
