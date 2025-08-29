@@ -6,13 +6,9 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-const dataManager = require('./data-manager-pg'); // Alterado para versão PostgreSQL
+const dataManager = require('./data-manager-pg');
 const cloudinary = require('cloudinary').v2;
-
-// Configuração simplificada do Cloudinary - ele automaticamente lê do CLOUDINARY_URL
-cloudinary.config({ 
-  secure: true // Força HTTPS
-});
+const fs = require('fs').promises; // Adiciona o módulo fs com promises
 
 require('dotenv').config();
 
@@ -478,13 +474,15 @@ async function createSessionTable() {
 
 // Adicionar antes da função startServer
 async function ensureUploadsDirectory() {
-    const uploadPath = path.join(process.cwd(), 'uploads');
     try {
-        await fs.promises.mkdir(uploadPath, { recursive: true });
+        const uploadPath = path.join(process.cwd(), 'uploads');
+        await fs.mkdir(uploadPath, { recursive: true });
         console.log('Diretório de uploads verificado/criado com sucesso');
     } catch (err) {
-        console.error('Erro ao criar diretório de uploads:', err);
-        throw err;
+        if (err.code !== 'EEXIST') {
+            console.error('Erro ao criar diretório de uploads:', err);
+            throw err;
+        }
     }
 }
 
@@ -492,7 +490,10 @@ async function ensureUploadsDirectory() {
 async function startServer() {
     try {
         // Garante que o diretório de uploads exista
-        await ensureUploadsDirectory();
+        await ensureUploadsDirectory().catch(err => {
+            console.warn('Aviso: Não foi possível criar diretório de uploads:', err);
+            // Continua mesmo se falhar, já que vamos usar Cloudinary
+        });
         
         // Cria a tabela de sessão
         await createSessionTable();
@@ -528,5 +529,4 @@ async function startServer() {
 }
 
 // Inicia a aplicação
-startServer();
 startServer();
