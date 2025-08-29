@@ -178,12 +178,78 @@ async function writeUsers(users) {
   }
 }
 
+async function updateImovel(id, propertyData) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const result = await client.query(`
+      UPDATE properties 
+      SET nome = $1,
+          descricao = $2,
+          contato = $3,
+          coords = $4,
+          owner_id = $5,
+          owner_username = $6,
+          transaction_type = $7,
+          property_type = $8,
+          sale_price = $9,
+          rental_price = $10,
+          rental_period = $11,
+          images = $12
+      WHERE id = $13
+      RETURNING *;
+    `, [
+      propertyData.nome,
+      propertyData.descricao,
+      propertyData.contato,
+      propertyData.coords,
+      propertyData.ownerId,
+      propertyData.ownerUsername,
+      propertyData.transactionType,
+      propertyData.propertyType,
+      propertyData.salePrice,
+      propertyData.rentalPrice,
+      propertyData.rentalPeriod,
+      propertyData.images,
+      id
+    ]);
+
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao atualizar imóvel:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function deleteImovel(id) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM properties WHERE id = $1', [id]);
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao deletar imóvel:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   initDB,
   readUsers,
   writeUsers,
   readImoveis,
   writeImoveis,
+  updateImovel,
+  deleteImovel,
   dataDir: path.join(process.cwd(), 'data')
 };
 

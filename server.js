@@ -229,21 +229,7 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
 app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imagens', 5), async (req, res) => {
     try {
         const { id } = req.params;
-        const property = {
-            id: id,
-            nome: req.body.nome,
-            descricao: req.body.descricao,
-            contato: req.body.contato,
-            coords: JSON.parse(req.body.coords || '{}'),
-            ownerId: req.session.user.id,
-            ownerUsername: req.session.user.username,
-            transactionType: req.body.transactionType,
-            propertyType: req.body.propertyType,
-            salePrice: req.body.salePrice ? parseFloat(req.body.salePrice) : null,
-            rentalPrice: req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null,
-            rentalPeriod: req.body.rentalPeriod || null
-        };
-
+        
         // Upload das novas imagens para o Cloudinary
         const uploadPromises = req.files ? req.files.map(file => {
             return new Promise((resolve, reject) => {
@@ -262,15 +248,25 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
 
         // Combina imagens existentes com novas imagens
         const existingImages = req.property.images || [];
-        property.images = [...existingImages, ...newImageUrls];
+        const updatedImages = [...existingImages, ...newImageUrls];
 
-        // Atualiza o imóvel no banco
-        await dataManager.writeImoveis({ imoveis: [property] });
+        const propertyData = {
+            nome: req.body.nome,
+            descricao: req.body.descricao,
+            contato: req.body.contato,
+            coords: JSON.parse(req.body.coords || '{}'),
+            ownerId: req.session.user.id,
+            ownerUsername: req.session.user.username,
+            transactionType: req.body.transactionType,
+            propertyType: req.body.propertyType,
+            salePrice: req.body.salePrice ? parseFloat(req.body.salePrice) : null,
+            rentalPrice: req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null,
+            rentalPeriod: req.body.rentalPeriod || null,
+            images: updatedImages
+        };
 
-        res.json({ 
-            message: 'Imóvel atualizado com sucesso!', 
-            property: property 
-        });
+        const updatedProperty = await dataManager.updateImovel(id, propertyData);
+        res.json({ message: 'Imóvel atualizado com sucesso!', property: updatedProperty });
     } catch (error) {
         console.error('Erro ao atualizar imóvel:', error);
         res.status(500).json({ message: 'Ocorreu um erro interno ao atualizar o imóvel.' });
@@ -281,24 +277,19 @@ app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res
     try {
         const { id } = req.params;
         
-        // Primeiro remove as imagens do Cloudinary
+        // Remove imagens do Cloudinary antes de deletar o imóvel
         if (req.property.images && req.property.images.length > 0) {
             for (const imageUrl of req.property.images) {
                 try {
-                    // Extrai o publicId da URL do Cloudinary
-                    const publicId = imageUrl.split('/').pop().split('.')[0];
-                    await cloudinary.uploader.destroy(`alugabv/${publicId}`);
+                    const publicId = `alugabv/${imageUrl.split('/').pop().split('.')[0]}`;
+                    await cloudinary.uploader.destroy(publicId);
                 } catch (err) {
                     console.error('Erro ao deletar imagem do Cloudinary:', err);
                 }
             }
         }
 
-        // Marca o imóvel para deleção
-        await dataManager.writeImoveis({
-            imoveis: [{ id, isDeleted: true }]
-        });
-
+        await dataManager.deleteImovel(id);
         res.json({ message: 'Imóvel removido com sucesso.' });
     } catch (error) {
         console.error('Erro ao remover imóvel:', error);
