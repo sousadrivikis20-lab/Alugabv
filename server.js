@@ -8,8 +8,6 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const dataManager = require('./data-manager-pg'); // Alterado para versão PostgreSQL
 require('dotenv').config();
-const RedisStore = require('connect-redis').default
-const { createClient } = require('redis')
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,29 +40,11 @@ if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_s
     process.exit(1);
 }
 
-// Configuração do Redis
-let redisClient
-let sessionStore
-
-if (process.env.NODE_ENV === 'production') {
-    // Configuração do Redis para produção (Render)
-    redisClient = createClient({
-        url: process.env.REDIS_URL,
-        socket: {
-            tls: true,
-            rejectUnauthorized: false
-        }
-    });
-} else {
-    // Configuração do Redis para desenvolvimento local
-    redisClient = createClient();
-}
-
-redisClient.on('error', err => console.log('Redis Client Error', err));
-redisClient.on('connect', () => console.log('Connected to Redis successfully'));
-
-// Initialize store
-sessionStore = new RedisStore({ client: redisClient });
+// Configuração do PostgreSQL
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
 // Configuração da Sessão
 app.use(session({
@@ -449,6 +429,26 @@ app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
 // A melhor prática é mover index.html, script.js e style.css para uma pasta 'public' e usar app.use(express.static('public'))
 app.use(express.static(path.join(__dirname)));
 
+// --- Função para iniciar o servidor de forma segura ---
+async function startServer() {
+    try {
+        // Inicializa o banco de dados
+        await dataManager.initDB();
+        console.log('Banco de dados inicializado com sucesso.');
+
+        // Inicia o servidor
+        app.listen(PORT, () => {
+            console.log(`Servidor rodando na porta ${PORT}`);
+        });
+
+    } catch (err) {
+        console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
+        process.exit(1);
+    }
+}
+
+// Inicia a aplicação
+startServer();
 // --- Função para iniciar o servidor de forma segura ---
 async function startServer() {
     try {
