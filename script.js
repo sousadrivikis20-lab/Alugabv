@@ -203,19 +203,53 @@ function filterProperties() {
 
   Object.values(markers).forEach(marker => {
     const property = marker.propertyData;
-    const propertyName = property.nome.toLowerCase();
-    const propertyType = property.propertyType.toLowerCase();
-    const propertyTransactionType = property.transactionType.toLowerCase();
-    const propertyOwner = property.ownerUsername ? property.ownerUsername.toLowerCase() : '';
+    if (!property) return; // Ignora se não houver dados
 
-    // Verifica se o termo de busca está presente no nome, tipo de imóvel, tipo de transação ou proprietário
-    const matches = propertyName.includes(searchTerm) || propertyType.includes(searchTerm) ||
-                    propertyTransactionType.includes(searchTerm) ||
-                    propertyOwner.includes(searchTerm);
+    // Garante que os valores existam, usando operador ?? para fornecer valor padrão
+    const propertyName = property.nome?.toLowerCase() ?? '';
+    const propertyType = property.propertyType?.toLowerCase() ?? '';
+    const propertyTransactionType = property.transactionType?.toLowerCase() ?? '';
+    const propertyOwner = property.ownerUsername?.toLowerCase() ?? '';
+    const propertyDescription = property.descricao?.toLowerCase() ?? '';
 
-    if (matches) { marker.addTo(map); } // Mostra o marcador
-    else { marker.remove(); } // Esconde o marcador
+    // Verifica se o termo de busca está presente em qualquer um dos campos
+    const matches = propertyName.includes(searchTerm) || 
+                   propertyType.includes(searchTerm) ||
+                   propertyTransactionType.includes(searchTerm) ||
+                   propertyOwner.includes(searchTerm) ||
+                   propertyDescription.includes(searchTerm);
+
+    // Mostra ou esconde o marcador
+    if (matches) {
+      marker.addTo(map);
+    } else {
+      marker.remove();
+    }
   });
+}
+
+async function loadInitialProperties() {
+  try {
+    const response = await apiCall('/api/imoveis');
+    if (!Array.isArray(response)) {
+      console.warn('Resposta inesperada ao carregar imóveis:', response);
+      return;
+    }
+
+    // Limpa marcadores existentes
+    Object.values(markers).forEach(marker => marker.remove());
+    markers = {};
+
+    // Adiciona novos marcadores
+    response.forEach(property => {
+      if (property && property.coords) {
+        addPropertyMarker(property);
+      }
+    });
+  } catch (error) {
+    console.error('Não foi possível carregar imóveis:', error);
+    showToast('Erro ao carregar imóveis. Por favor, tente novamente.', 'error');
+  }
 }
 
 // --- Funções de Lógica de Imóveis ---
@@ -358,12 +392,12 @@ function createPopupContent(property, doc = document) {
     actionsContainer.className = 'popup-actions';
 
     const editBtn = doc.createElement('button');
-    editBtn.className = 'edit-btn';
+    editBtn.className = 'btn-edit';  // Muda de 'edit-btn' para 'btn-edit'
     editBtn.dataset.id = id;
     editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/></svg> <span>Editar</span>`;
 
     const removeBtn = doc.createElement('button');
-    removeBtn.className = 'remove-btn';
+    removeBtn.className = 'btn-delete';  // Muda de 'remove-btn' para 'btn-delete'
     removeBtn.dataset.id = id;
     removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg> <span>Remover</span>`;
 
@@ -477,13 +511,25 @@ async function apiCall(endpoint, options = {}) {
 
 async function loadInitialProperties() {
   try {
-    const properties = await apiCall('/api/imoveis');
-    Object.values(markers).forEach(marker => map.removeLayer(marker));
+    const response = await apiCall('/api/imoveis');
+    if (!Array.isArray(response)) {
+      console.warn('Resposta inesperada ao carregar imóveis:', response);
+      return;
+    }
+
+    // Limpa marcadores existentes
+    Object.values(markers).forEach(marker => marker.remove());
     markers = {};
-    properties.forEach(prop => addPropertyMarker(prop));
-    filterProperties(); // Aplica o filtro após carregar todos os imóveis
+
+    // Adiciona novos marcadores
+    response.forEach(property => {
+      if (property && property.coords) {
+        addPropertyMarker(property);
+      }
+    });
   } catch (error) {
-    console.error('Não foi possível carregar imóveis (pode ser que não haja nenhum).', error);
+    console.error('Não foi possível carregar imóveis:', error);
+    showToast('Erro ao carregar imóveis. Por favor, tente novamente.', 'error');
   }
 }
 
