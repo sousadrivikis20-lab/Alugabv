@@ -15,8 +15,9 @@ const PORT = process.env.PORT || 3000;
 // --- Configuração do Multer para Upload de Imagens ---
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const uploadPath = path.join(dataManager.dataDir, 'uploads');
-        // Garante que o diretório de uploads exista no disco persistente
+        // Usar uma pasta uploads no diretório raiz do projeto
+        const uploadPath = path.join(process.cwd(), 'uploads');
+        // Garante que o diretório de uploads exista
         require('fs').mkdirSync(uploadPath, { recursive: true });
         cb(null, uploadPath);
     },
@@ -31,7 +32,7 @@ const upload = multer({ storage: storage });
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Para parsear application/x-www-form-urlencoded
-app.use('/uploads', express.static(path.join(dataManager.dataDir, 'uploads'))); // Servir imagens da pasta uploads do disco persistente
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'))); // Servir imagens da pasta uploads do disco persistente
 
 // Verifica se a SESSION_SECRET foi definida no .env
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_super_secreto_aqui_com_pelo_menos_32_caracteres') {
@@ -455,10 +456,25 @@ async function createSessionTable() {
   }
 }
 
-// Modifique a função startServer para incluir a criação da tabela
+// Adicionar antes da função startServer
+async function ensureUploadsDirectory() {
+    const uploadPath = path.join(process.cwd(), 'uploads');
+    try {
+        await fs.promises.mkdir(uploadPath, { recursive: true });
+        console.log('Diretório de uploads verificado/criado com sucesso');
+    } catch (err) {
+        console.error('Erro ao criar diretório de uploads:', err);
+        throw err;
+    }
+}
+
+// Modificar a função startServer
 async function startServer() {
     try {
-        // Cria a tabela de sessão antes de inicializar o banco
+        // Garante que o diretório de uploads exista
+        await ensureUploadsDirectory();
+        
+        // Cria a tabela de sessão
         await createSessionTable();
         
         // Inicializa o banco de dados
