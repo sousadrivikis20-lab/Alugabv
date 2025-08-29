@@ -47,17 +47,21 @@ const pool = new Pool({
 });
 
 // Configuração da Sessão
+app.set('trust proxy', 1); // Adicione esta linha antes da configuração da sessão
 app.use(session({
   store: new pgSession({
     pool,
-    tableName: 'session' // Cria uma tabela chamada session para armazenar as sessões
+    tableName: 'session',
+    createTableIfMissing: true
   }),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  proxy: true, // Adicione esta linha
   cookie: { 
-    secure: process.env.NODE_ENV === 'production', // Use cookies seguros em produção (HTTPS)
-    httpOnly: true, 
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'none', // Adicione esta linha
     maxAge: 24 * 60 * 60 * 1000 // 1 dia
   }
 }));
@@ -432,12 +436,15 @@ app.use(express.static(path.join(__dirname)));
 // --- Função para iniciar o servidor de forma segura ---
 async function createSessionTable() {
   try {
+    // Primeiro cria a extensão pgcrypto se não existir
+    await pool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`);
+    
+    // Depois cria a tabela session
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "session" (
-        "sid" varchar NOT NULL COLLATE "default",
+        "sid" varchar NOT NULL COLLATE "default" PRIMARY KEY,
         "sess" json NOT NULL,
-        "expire" timestamp(6) NOT NULL,
-        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+        "expire" timestamp(6) NOT NULL
       );
       CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
     `);
