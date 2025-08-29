@@ -45,10 +45,20 @@ if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_s
     process.exit(1);
 }
 
-// Configuração do PostgreSQL
+// Configuração do PostgreSQL - Adicione verificação de conexão
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/alugabv',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Teste a conexão antes de iniciar
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('Erro ao conectar ao banco de dados:', err);
+    process.exit(1);
+  }
+  release();
+  console.log('Conectado ao banco de dados PostgreSQL');
 });
 
 // Configuração da Sessão
