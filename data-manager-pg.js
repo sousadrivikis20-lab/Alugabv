@@ -6,37 +6,8 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-const dataDir = path.join(process.cwd(), 'data');
-
-async function createDatabaseIfNotExists() {
-  const tempPool = new Pool({
-    connectionString: process.env.DATABASE_URL?.replace('/alugabv', '/postgres') || 'postgresql://postgres:postgres@localhost:5432/postgres',
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-  });
-
-  try {
-    // Verifica se o banco já existe
-    const result = await tempPool.query(
-      "SELECT 1 FROM pg_database WHERE datname = 'alugabv'"
-    );
-
-    // Se não existe, cria
-    if (result.rows.length === 0) {
-      await tempPool.query('CREATE DATABASE alugabv');
-      console.log('Banco de dados alugabv criado com sucesso');
-    }
-  } catch (err) {
-    console.error('Erro ao verificar/criar banco de dados:', err);
-  } finally {
-    await tempPool.end();
-  }
-}
-
 async function initDB() {
   try {
-    // Primeiro tenta criar o banco se não existir
-    await createDatabaseIfNotExists();
-    
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(36) PRIMARY KEY,
@@ -61,7 +32,6 @@ async function initDB() {
         images TEXT[]
       );
     `);
-
     console.log('Banco de dados inicializado com sucesso');
   } catch (err) {
     console.error('Erro ao inicializar banco de dados:', err);
@@ -69,59 +39,26 @@ async function initDB() {
   }
 }
 
-async function readUsers() {
-  try {
-    const result = await pool.query('SELECT * FROM users');
-    return result.rows;
-  } catch (err) {
-    console.error('Erro ao ler usuários:', err);
-    throw err;
-  }
-}
-
-async function writeUsers(users) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    await client.query('DELETE FROM users');
-    
-    for (const user of users) {
-      await client.query(`
-        INSERT INTO users (id, username, password, role)
-        VALUES ($1, $2, $3, $4)
-      `, [user.id, user.username, user.password, user.role]);
-    }
-    
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-
 async function readImoveis() {
   try {
     const result = await pool.query(`
-      SELECT 
-        id,
-        nome,
-        descricao,
-        contato,
-        coords,
-        owner_id as "ownerId",
-        owner_username as "ownerUsername",
-        transaction_type as "transactionType",
-        property_type as "propertyType",
-        sale_price as "salePrice",
-        rental_price as "rentalPrice",
-        rental_period as "rentalPeriod",
-        images
-      FROM properties
+      SELECT * FROM properties;
     `);
-    
-    return { imoveis: result.rows };
+    return { imoveis: result.rows.map(row => ({
+      id: row.id,
+      nome: row.nome,
+      descricao: row.descricao,
+      contato: row.contato,
+      coords: row.coords,
+      ownerId: row.owner_id,
+      ownerUsername: row.owner_username,
+      transactionType: row.transaction_type,
+      propertyType: row.property_type,
+      salePrice: row.sale_price,
+      rentalPrice: row.rental_price,
+      rentalPeriod: row.rental_period,
+      images: row.images || []
+    })) };
   } catch (err) {
     console.error('Erro ao ler imóveis:', err);
     throw err;
@@ -133,8 +70,50 @@ async function writeImoveis(data) {
   try {
     await client.query('BEGIN');
     
-    // Limpa a tabela apenas se estivermos reescrevendo todos os imóveis
-    if (Array.isArray(data.imoveis)) {
+    // Se temos apenas um imóvel para atualizar
+    if (data.imoveis.length === 1) {
+      const property = data.imoveis[0];
+      await client.query(`
+        UPDATE properties 
+        SET nome = $1,
+            descricao = $2,
+            contato = $3,
+            coords = $4,
+            owner_id = $5,
+            owner_username = $6,
+            transaction_type = $7,
+            property_type = $8,
+            sale_price = $9,
+            rental_price = $10,
+            rental_period = $11,
+            images = $12
+        WHERE id = $13;
+        
+        INSERT INTO properties (
+          id, nome, descricao, contato, coords, 
+          owner_id, owner_username, transaction_type, 
+          property_type, sale_price, rental_price, 
+          rental_period, images
+        )
+        SELECT $13, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+        WHERE NOT EXISTS (SELECT 1 FROM properties WHERE id = $13);
+      `, [
+        property.nome,
+        property.descricao,
+        property.contato,
+        property.coords,
+        property.ownerId,
+        property.ownerUsername,
+        property.transactionType || 'Vender',
+        property.propertyType || 'Casa',
+        property.salePrice,
+        property.rentalPrice,
+        property.rentalPeriod,
+        property.images || [],
+        property.id
+      ]);
+    } else {
+      // Se estamos atualizando vários imóveis
       await client.query('DELETE FROM properties');
       
       for (const property of data.imoveis) {
@@ -153,12 +132,12 @@ async function writeImoveis(data) {
           property.coords,
           property.ownerId,
           property.ownerUsername,
-          property.transactionType,
-          property.propertyType,
+          property.transactionType || 'Vender',
+          property.propertyType || 'Casa',
           property.salePrice,
           property.rentalPrice,
           property.rentalPeriod,
-          property.images
+          property.images || []
         ]);
       }
     }
@@ -166,11 +145,14 @@ async function writeImoveis(data) {
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
+    console.error('Erro ao escrever imóveis:', err);
     throw err;
   } finally {
     client.release();
   }
 }
+
+// ... rest of the code (readUsers, writeUsers) stays the same ...
 
 module.exports = {
   initDB,
@@ -178,5 +160,6 @@ module.exports = {
   writeUsers,
   readImoveis,
   writeImoveis,
-  dataDir
+  dataDir: path.join(process.cwd(), 'data')
 };
+    
