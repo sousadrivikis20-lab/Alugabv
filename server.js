@@ -7,6 +7,13 @@ const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const dataManager = require('./data-manager-pg'); // Alterado para versão PostgreSQL
+const cloudinary = require('cloudinary').v2;
+
+// Configuração simplificada do Cloudinary - ele automaticamente lê do CLOUDINARY_URL
+cloudinary.config({ 
+  secure: true // Força HTTPS
+});
+
 require('dotenv').config();
 
 const app = express();
@@ -27,7 +34,8 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage: storage });
+// Modificar o upload para usar memória ao invés do disco
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Middleware
 app.use(express.json());
@@ -166,18 +174,28 @@ app.get('/api/imoveis', async (req, res) => {
 
 app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), async (req, res) => {
     try {
-        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description } = req.body;
-        const propertyDescricao = descricao !== undefined ? descricao : description;
-        if (!nome || !contato || !coords || !transactionType || !propertyType || !propertyDescricao) {
-            return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
-        }
+        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao } = req.body;
+        
+        // Upload das imagens para o Cloudinary
+        const uploadPromises = req.files ? req.files.map(file => {
+            return new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { folder: 'alugabv' },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result.secure_url);
+                    }
+                );
+                uploadStream.end(file.buffer);
+            });
+        }) : [];
 
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
+        const imageUrls = await Promise.all(uploadPromises);
+
         const newProperty = {
             id: uuidv4(),
             nome,
-            descricao: propertyDescricao,
+            descricao,
             contato,
             transactionType,
             propertyType,
@@ -187,9 +205,11 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             coords: JSON.parse(coords),
             ownerId: req.session.user.id,
             ownerUsername: req.session.user.username,
-            images: req.files ? req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/")) : []
+            images: imageUrls
         };
 
+        const propertiesData = await dataManager.readImoveis();
+        const properties = propertiesData.imoveis || [];
         properties.push(newProperty);
         await dataManager.writeImoveis({ imoveis: properties });
 
@@ -508,4 +528,5 @@ async function startServer() {
 }
 
 // Inicia a aplicação
+startServer();
 startServer();
