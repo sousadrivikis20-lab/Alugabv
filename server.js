@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-const dataManager = require('./data-manager'); // Importa o novo módulo
+const dataManager = require('./data-manager-pg'); // Alterado para versão PostgreSQL
 require('dotenv').config();
 
 const app = express();
@@ -420,18 +420,18 @@ app.use(express.static(path.join(__dirname)));
 // --- Função para iniciar o servidor de forma segura ---
 async function startServer() {
     try {
-        // 1. Garante que os arquivos de dados e diretórios existam ANTES de o servidor começar a ouvir.
-        await dataManager.initializeDataFiles();
-        console.log('Arquivos de dados inicializados com sucesso.');
+        // Inicializa o banco de dados
+        await dataManager.initDB();
+        console.log('Banco de dados inicializado com sucesso.');
 
-        // 2. Inicia o servidor apenas após a inicialização bem-sucedida.
+        // Inicia o servidor
         app.listen(PORT, () => {
             console.log(`Servidor rodando na porta ${PORT}`);
         });
 
     } catch (err) {
         console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
-        process.exit(1); // Encerra o processo se a inicialização falhar.
+        process.exit(1);
     }
 }
 

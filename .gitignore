@@ -6,3 +6,6 @@ node_modules
 db.json
 users.json
 /uploads/
+
+# Variáveis de ambiente
+.env
