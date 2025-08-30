@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-const dataManager = require('./data-manager-pg');
+const dataManager = require('./data-manager-pg'); // Certifique-se que está usando o arquivo correto
 const cloudinary = require('cloudinary').v2;
 const fs = require('fs').promises; // Adiciona o módulo fs com promises
 

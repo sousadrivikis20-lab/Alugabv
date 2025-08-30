@@ -161,6 +161,12 @@ async function writeUsers(users) {
   }
 }
 
-// Remove as funções updateImovel e deleteImovel
-// (Remove the misplaced code block below, and keep only the correct module.exports at the end)
+module.exports = {
+  initDB,
+  readUsers,
+  writeUsers,
+  readImoveis,
+  writeImoveis,
+  dataDir: path.join(process.cwd(), 'data')
+};
 
