@@ -1,15 +1,10 @@
 const express = require('express');
 const session = require('express-session');
-const pgSession = require('connect-pg-simple')(session);
-const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-const dataManager = require('./data-manager-pg'); // Certifique-se que está usando o arquivo correto
-const cloudinary = require('cloudinary').v2;
-const fs = require('fs').promises; // Adiciona o módulo fs com promises
-
+const dataManager = require('./data-manager'); // Importa o novo módulo
 require('dotenv').config();
 
 const app = express();
@@ -18,9 +13,8 @@ const PORT = process.env.PORT || 3000;
 // --- Configuração do Multer para Upload de Imagens ---
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // Usar uma pasta uploads no diretório raiz do projeto
-        const uploadPath = path.join(process.cwd(), 'uploads');
-        // Garante que o diretório de uploads exista
+        const uploadPath = path.join(dataManager.dataDir, 'uploads');
+        // Garante que o diretório de uploads exista no disco persistente
         require('fs').mkdirSync(uploadPath, { recursive: true });
         cb(null, uploadPath);
     },
@@ -30,13 +24,12 @@ const storage = multer.diskStorage({
     }
 });
 
-// Modificar o upload para usar memória ao invés do disco
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: storage });
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Para parsear application/x-www-form-urlencoded
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'))); // Servir imagens da pasta uploads do disco persistente
+app.use('/uploads', express.static(path.join(dataManager.dataDir, 'uploads'))); // Servir imagens da pasta uploads do disco persistente
 
 // Verifica se a SESSION_SECRET foi definida no .env
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_super_secreto_aqui_com_pelo_menos_32_caracteres') {
@@ -45,40 +38,16 @@ if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_s
     process.exit(1);
 }
 
-// Configuração do PostgreSQL - Adicione verificação de conexão
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/alugabv',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
-
-// Teste a conexão antes de iniciar
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Erro ao conectar ao banco de dados:', err);
-    process.exit(1);
-  }
-  release();
-  console.log('Conectado ao banco de dados PostgreSQL');
-});
-
 // Configuração da Sessão
-app.set('trust proxy', 1); // Adicione esta linha antes da configuração da sessão
 app.use(session({
-  store: new pgSession({
-    pool,
-    tableName: 'session',
-    createTableIfMissing: true
-  }),
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  proxy: true, // Adicione esta linha
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'none', // Adicione esta linha
-    maxAge: 24 * 60 * 60 * 1000 // 1 dia
-  }
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production', // Use cookies seguros em produção (HTTPS)
+        httpOnly: true, 
+        maxAge: 24 * 60 * 60 * 1000 // 1 dia
+    }
 }));
 
 // --- Middlewares de Autenticação ---
@@ -131,17 +100,22 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const { username, password } = req.body;
-  const users = await dataManager.readUsers();
-  const user = users.find(u => u.username === username);
+    try {
+        const { username, password } = req.body;
+        const users = await dataManager.readUsers();
+        const user = users.find(u => u.username === username);
 
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
-  }
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
+        }
 
-  const userSessionData = { id: user.id, username: user.username, role: user.role };
-  req.session.user = userSessionData;
-  res.json({ message: 'Login bem-sucedido!', user: userSessionData });
+        const userSessionData = { id: user.id, username: user.username, role: user.role };
+        req.session.user = userSessionData;
+        res.json({ message: 'Login bem-sucedido!', user: userSessionData });
+    } catch (error) {
+        console.error("Erro no login:", error);
+        res.status(500).json({ message: 'Ocorreu um erro interno durante o login.' });
+    }
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -175,33 +149,18 @@ app.get('/api/imoveis', async (req, res) => {
 
 app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), async (req, res) => {
     try {
-        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao } = req.body;
-        const userId = req.session.user.id;
-
-        if (!userId) {
-            return res.status(401).send('Não autorizado.');
+        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description } = req.body;
+        const propertyDescricao = descricao !== undefined ? descricao : description;
+        if (!nome || !contato || !coords || !transactionType || !propertyType || !propertyDescricao) {
+            return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
-        
-        // Upload das imagens para o Cloudinary
-        const uploadPromises = req.files ? req.files.map(file => {
-            return new Promise((resolve, reject) => {
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    { folder: 'alugabv' },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result.secure_url);
-                    }
-                );
-                uploadStream.end(file.buffer);
-            });
-        }) : [];
 
-        const imageUrls = await Promise.all(uploadPromises);
-
+        const propertiesData = await dataManager.readImoveis();
+        const properties = propertiesData.imoveis || [];
         const newProperty = {
             id: uuidv4(),
             nome,
-            descricao,
+            descricao: propertyDescricao,
             contato,
             transactionType,
             propertyType,
@@ -209,13 +168,11 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             rentalPrice: rentalPrice ? parseFloat(rentalPrice) : null,
             rentalPeriod: rentalPeriod || null,
             coords: JSON.parse(coords),
-            ownerId: userId,
+            ownerId: req.session.user.id,
             ownerUsername: req.session.user.username,
-            images: imageUrls
+            images: req.files ? req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/")) : []
         };
 
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
         properties.push(newProperty);
         await dataManager.writeImoveis({ imoveis: properties });
 
@@ -229,82 +186,101 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
 app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imagens', 5), async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.session.user.id;
+        const propertiesData = await dataManager.readImoveis();
+        const properties = propertiesData.imoveis || [];
+        const propertyIndex = properties.findIndex(p => p.id === id);
 
-        if (!userId) {
-            return res.status(401).send('Não autorizado.');
+        if (propertyIndex === -1) {
+            return res.status(404).json({ message: 'Imóvel não encontrado.' });
         }
 
-        // Upload das novas imagens para o Cloudinary
-        const uploadPromises = req.files ? req.files.map(file => {
-            return new Promise((resolve, reject) => {
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    { folder: 'alugabv' },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result.secure_url);
-                    }
-                );
-                uploadStream.end(file.buffer);
-            });
-        }) : [];
+        const propertyToUpdate = properties[propertyIndex];
 
-        const newImageUrls = await Promise.all(uploadPromises);
+        if (req.body.nome !== undefined) propertyToUpdate.nome = req.body.nome;
+        if (req.body.descricao !== undefined) propertyToUpdate.descricao = req.body.descricao;
+        if (req.body.contato !== undefined) propertyToUpdate.contato = req.body.contato;
+        if (req.body.transactionType !== undefined) propertyToUpdate.transactionType = req.body.transactionType;
+        if (req.body.propertyType !== undefined) propertyToUpdate.propertyType = req.body.propertyType;
+        if (req.body.coords) propertyToUpdate.coords = JSON.parse(req.body.coords);
+        if (req.body.salePrice !== undefined) propertyToUpdate.salePrice = req.body.salePrice ? parseFloat(req.body.salePrice) : null;
+        if (req.body.rentalPrice !== undefined) propertyToUpdate.rentalPrice = req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null;
+        if (req.body.rentalPeriod !== undefined) propertyToUpdate.rentalPeriod = req.body.rentalPeriod || null;
 
-        // Combina imagens existentes com novas imagens
-        const existingImages = req.property.images || [];
-        const updatedImages = [...existingImages, ...newImageUrls];
+        if (req.files && req.files.length > 0) {
+            const newImages = req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/"));
+            propertyToUpdate.images = [...(propertyToUpdate.images || []), ...newImages];
+        }
 
-        const propertyData = {
-            nome: req.body.nome,
-            descricao: req.body.descricao,
-            contato: req.body.contato,
-            coords: JSON.parse(req.body.coords || '{}'),
-            ownerId: req.session.user.id,
-            ownerUsername: req.session.user.username,
-            transactionType: req.body.transactionType,
-            propertyType: req.body.propertyType,
-            salePrice: req.body.salePrice ? parseFloat(req.body.salePrice) : null,
-            rentalPrice: req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null,
-            rentalPeriod: req.body.rentalPeriod || null,
-            images: updatedImages
-        };
+        properties[propertyIndex] = propertyToUpdate;
+        await dataManager.writeImoveis({ imoveis: properties });
 
-        const updatedProperty = await dataManager.updateImovel(id, propertyData);
-        res.json({ message: 'Imóvel atualizado com sucesso!', property: updatedProperty });
+        res.json({ message: 'Imóvel atualizado com sucesso!', property: propertyToUpdate });
     } catch (error) {
         console.error('Erro ao atualizar imóvel:', error);
         res.status(500).json({ message: 'Ocorreu um erro interno ao atualizar o imóvel.' });
     }
 });
 
-app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.session.user.id;
+app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { imagePath } = req.body;
 
-    if (!userId) {
-      return res.status(401).send('Não autorizado.');
-    }
-
-    // Remove imagens do Cloudinary antes de deletar o imóvel
-    if (req.property.images && req.property.images.length > 0) {
-      for (const imageUrl of req.property.images) {
-        try {
-          const publicId = `alugabv/${imageUrl.split('/').pop().split('.')[0]}`;
-          await cloudinary.uploader.destroy(publicId);
-        } catch (err) {
-          console.error('Erro ao deletar imagem do Cloudinary:', err);
+        if (!imagePath) {
+            return res.status(400).json({ message: 'Caminho da imagem é obrigatório.' });
         }
-      }
-    }
 
-    await dataManager.deleteImovel(id);
-    res.json({ message: 'Imóvel removido com sucesso.' });
-  } catch (error) {
-    console.error('Erro ao remover imóvel:', error);
-    res.status(500).json({ message: 'Ocorreu um erro interno ao remover o imóvel.' });
-  }
+        const propertiesData = await dataManager.readImoveis();
+        const properties = propertiesData.imoveis || [];
+        const propertyIndex = properties.findIndex(p => p.id === id);
+
+        if (propertyIndex === -1) {
+            return res.status(404).json({ message: 'Imóvel não encontrado.' });
+        }
+
+        const propertyToUpdate = properties[propertyIndex];
+        propertyToUpdate.images = propertyToUpdate.images.filter(img => img !== imagePath);
+
+        require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
+            if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
+        });
+
+        properties[propertyIndex] = propertyToUpdate;
+        await dataManager.writeImoveis({ imoveis: properties });
+
+        res.json({ message: 'Imagem removida com sucesso!', property: propertyToUpdate });
+    } catch (error) {
+        console.error('Erro ao remover imagem do imóvel:', error);
+        res.status(500).json({ message: 'Ocorreu um erro interno ao remover a imagem.' });
+    }
+});
+
+app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const propertiesData = await dataManager.readImoveis();
+        const properties = propertiesData.imoveis || [];
+        const propertyIndex = properties.findIndex(p => p.id === id);
+
+        if (propertyIndex === -1) {
+            return res.status(404).json({ message: 'Imóvel não encontrado para exclusão.' });
+        }
+
+        if (req.property.images && req.property.images.length > 0) {
+            req.property.images.forEach(imagePath => {
+                require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
+                    if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
+                });
+            });
+        }
+
+        properties.splice(propertyIndex, 1);
+        await dataManager.writeImoveis({ imoveis: properties });
+        res.json({ message: 'Imóvel removido com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao remover imóvel:', error);
+        res.status(500).json({ message: 'Ocorreu um erro interno ao remover o imóvel.' });
+    }
 });
 
 // --- Rotas de Gerenciamento de Usuário ---
@@ -442,83 +418,22 @@ app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
 app.use(express.static(path.join(__dirname)));
 
 // --- Função para iniciar o servidor de forma segura ---
-async function createSessionTable() {
-  try {
-    // Primeiro cria a extensão pgcrypto se não existir
-    await pool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`);
-    
-    // Depois cria a tabela session
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS "session" (
-        "sid" varchar NOT NULL COLLATE "default" PRIMARY KEY,
-        "sess" json NOT NULL,
-        "expire" timestamp(6) NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
-    `);
-    console.log('Tabela de sessão verificada/criada com sucesso');
-  } catch (err) {
-    console.error('Erro ao criar tabela de sessão:', err);
-    throw err;
-  }
-}
-
-// Adicionar antes da função startServer
-async function ensureUploadsDirectory() {
-    try {
-        const uploadPath = path.join(process.cwd(), 'uploads');
-        await fs.mkdir(uploadPath, { recursive: true });
-        console.log('Diretório de uploads verificado/criado com sucesso');
-    } catch (err) {
-        if (err.code !== 'EEXIST') {
-            console.error('Erro ao criar diretório de uploads:', err);
-            throw err;
-        }
-    }
-}
-
-// Modificar a função startServer
 async function startServer() {
     try {
-        // Garante que o diretório de uploads exista
-        await ensureUploadsDirectory().catch(err => {
-            console.warn('Aviso: Não foi possível criar diretório de uploads:', err);
-            // Continua mesmo se falhar, já que vamos usar Cloudinary
-        });
-        
-        // Cria a tabela de sessão
-        await createSessionTable();
-        
-        // Inicializa o banco de dados
-        await dataManager.initDB();
-        console.log('Banco de dados inicializado com sucesso.');
+        // 1. Garante que os arquivos de dados e diretórios existam ANTES de o servidor começar a ouvir.
+        await dataManager.initializeDataFiles();
+        console.log('Arquivos de dados inicializados com sucesso.');
 
-        // Inicia o servidor com tratamento de erro
-        const server = app.listen(PORT, () => {
+        // 2. Inicia o servidor apenas após a inicialização bem-sucedida.
+        app.listen(PORT, () => {
             console.log(`Servidor rodando na porta ${PORT}`);
-        });
-
-        server.on('error', (error) => {
-            if (error.code === 'EADDRINUSE') {
-                console.error(`Porta ${PORT} já está em uso. Tentando outra porta...`);
-                server.close();
-                // Tenta uma porta diferente
-                const newPort = parseInt(PORT) + 1;
-                app.listen(newPort, () => {
-                    console.log(`Servidor rodando na nova porta ${newPort}`);
-                });
-            } else {
-                console.error('Erro ao iniciar servidor:', error);
-                process.exit(1);
-            }
         });
 
     } catch (err) {
         console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
-        process.exit(1);
+        process.exit(1); // Encerra o processo se a inicialização falhar.
     }
 }
 
 // Inicia a aplicação
-startServer();
 startServer();

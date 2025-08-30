@@ -103,11 +103,12 @@ function showToast(message, type = 'info') {
   toast.innerHTML = `${iconSvg}<span>${message}</span>`;
   container.appendChild(toast);
 
-toast.addEventListener('animationend', (e) => {
-  if (e.animationName === 'slideOut') {
-    toast.remove();
-  }
-});
+  toast.addEventListener('animationend', (e) => {
+    if (e.animationName === 'slideOut') {
+      toast.remove();
+    }
+  });
+}
 
 // Feedback de Carregamento em Botões
 function toggleLoading(button, isLoading) {
@@ -178,7 +179,8 @@ function updateUIForUser() {
     const property = marker.propertyData;
     if (property) {
       marker.setPopupContent(createPopupContent(property));
-  }  });
+    }
+  });
 }
 
 function togglePropertyForm() {
@@ -201,53 +203,19 @@ function filterProperties() {
 
   Object.values(markers).forEach(marker => {
     const property = marker.propertyData;
-    if (!property) return; // Ignora se não houver dados
+    const propertyName = property.nome.toLowerCase();
+    const propertyType = property.propertyType.toLowerCase();
+    const propertyTransactionType = property.transactionType.toLowerCase();
+    const propertyOwner = property.ownerUsername ? property.ownerUsername.toLowerCase() : '';
 
-    // Garante que os valores existam, usando operador ?? para fornecer valor padrão
-    const propertyName = property.nome?.toLowerCase() ?? '';
-    const propertyType = property.propertyType?.toLowerCase() ?? '';
-    const propertyTransactionType = property.transactionType?.toLowerCase() ?? '';
-    const propertyOwner = property.ownerUsername?.toLowerCase() ?? '';
-    const propertyDescription = property.descricao?.toLowerCase() ?? '';
+    // Verifica se o termo de busca está presente no nome, tipo de imóvel, tipo de transação ou proprietário
+    const matches = propertyName.includes(searchTerm) || propertyType.includes(searchTerm) ||
+                    propertyTransactionType.includes(searchTerm) ||
+                    propertyOwner.includes(searchTerm);
 
-    // Verifica se o termo de busca está presente em qualquer um dos campos
-    const matches = propertyName.includes(searchTerm) || 
-                   propertyType.includes(searchTerm) ||
-                   propertyTransactionType.includes(searchTerm) ||
-                   propertyOwner.includes(searchTerm) ||
-                   propertyDescription.includes(searchTerm);
-
-    // Mostra ou esconde o marcador
-    if (matches) {
-      marker.addTo(map);
-    } else {
-      marker.remove();
-    }
+    if (matches) { marker.addTo(map); } // Mostra o marcador
+    else { marker.remove(); } // Esconde o marcador
   });
-}
-
-async function loadInitialProperties() {
-  try {
-    const response = await apiCall('/api/imoveis');
-    if (!Array.isArray(response)) {
-      console.warn('Resposta inesperada ao carregar imóveis:', response);
-      return;
-    }
-
-    // Limpa marcadores existentes
-    Object.values(markers).forEach(marker => marker.remove());
-    markers = {};
-
-    // Adiciona novos marcadores
-    response.forEach(property => {
-      if (property && property.coords) {
-        addPropertyMarker(property);
-      }
-    });
-  } catch (error) {
-    console.error('Não foi possível carregar imóveis:', error);
-    showToast('Erro ao carregar imóveis. Por favor, tente novamente.', 'error');
-  }
 }
 
 // --- Funções de Lógica de Imóveis ---
@@ -329,7 +297,7 @@ function createPopupContent(property, doc = document) {
       propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-shop-window" viewBox="0 0 16 16"><path d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35L14.75 4H11V2H5v2H1.25L2.97 1.35zM1 5h14v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5zm6 0v2H5V5h2zm2 0v2h2V5H9zm2 3v2H9V8h2zm-2 0v2H7V8h2zm-2 0v2H5V8h2zm2 3v2H9v-2h2zm-2 0v2H7v-2h2z"/></svg>`;
       break;
     default:
-      propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-geo-alt-fill" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 1 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`; // Ícone genérico
+      propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-geo-alt-fill" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`; // Ícone genérico
   }
   propertyTypeEl.innerHTML = `${propertyTypeIconSvg} <span>${propertyType}</span>`;
   container.appendChild(propertyTypeEl);
@@ -384,24 +352,23 @@ function createPopupContent(property, doc = document) {
     container.appendChild(ownerInfo);
   }
 
-  // Seção de botões de ação (volta para a versão anterior)
+  // Botões de Ação (volta para o padrão anterior, sem blocos extras)
   if (currentUser && currentUser.role === 'owner' && currentUser.id === ownerId) {
-    const actionsDiv = doc.createElement('div');
-    actionsDiv.className = 'popup-actions';
-    
-    const editButton = doc.createElement('button');
-    editButton.className = 'btn-edit';
-    editButton.textContent = 'Editar';
-    editButton.onclick = () => handleEditStart(id);
+    const actionsContainer = doc.createElement('div');
+    actionsContainer.className = 'popup-actions';
 
-    const removeButton = doc.createElement('button');
-    removeButton.className = 'btn-delete';
-    removeButton.textContent = 'Remover';
-    removeButton.onclick = () => handleDelete(id);
+    const editBtn = doc.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.dataset.id = id;
+    editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/></svg> <span>Editar</span>`;
 
-    actionsDiv.appendChild(editButton);
-    actionsDiv.appendChild(removeButton);
-    container.appendChild(actionsDiv);
+    const removeBtn = doc.createElement('button');
+    removeBtn.className = 'remove-btn';
+    removeBtn.dataset.id = id;
+    removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg> <span>Remover</span>`;
+
+    actionsContainer.append(editBtn, removeBtn);
+    container.appendChild(actionsContainer);
   }
 
   return container;
@@ -510,25 +477,13 @@ async function apiCall(endpoint, options = {}) {
 
 async function loadInitialProperties() {
   try {
-    const response = await apiCall('/api/imoveis');
-    if (!Array.isArray(response)) {
-      console.warn('Resposta inesperada ao carregar imóveis:', response);
-      return;
-    }
-
-    // Limpa marcadores existentes
-    Object.values(markers).forEach(marker => marker.remove());
+    const properties = await apiCall('/api/imoveis');
+    Object.values(markers).forEach(marker => map.removeLayer(marker));
     markers = {};
-
-    // Adiciona novos marcadores
-    response.forEach(property => {
-      if (property && property.coords) {
-        addPropertyMarker(property);
-      }
-    });
+    properties.forEach(prop => addPropertyMarker(prop));
+    filterProperties(); // Aplica o filtro após carregar todos os imóveis
   } catch (error) {
-    console.error('Não foi possível carregar imóveis:', error);
-    showToast('Erro ao carregar imóveis. Por favor, tente novamente.', 'error');
+    console.error('Não foi possível carregar imóveis (pode ser que não haja nenhum).', error);
   }
 }
 
@@ -749,28 +704,17 @@ async function handleEditSave() {
 async function handleDelete(id) {
   const onConfirm = async () => {
     try {
-      const response = await apiCall(`/api/imoveis/${id}`, { method: 'DELETE' });
-      if (!response) throw new Error('Falha ao excluir imóvel');
-      
-      // Remove o marcador do mapa
-      if (markers[id]) {
-        markers[id].remove();
-        delete markers[id];
-      }
-      
-      showToast('Imóvel removido com sucesso!', 'success');
-      hideConfirmationModal();
+      await apiCall(`/api/imoveis/${id}`, { method: 'DELETE' });
+      map.removeLayer(markers[id]);
+      delete markers[id];
+      showToast('Imóvel removido com sucesso.', 'success');
     } catch (error) {
-      console.error('Erro ao excluir imóvel:', error);
-      showToast('Erro ao excluir imóvel. Tente novamente.', 'error');
-      hideConfirmationModal();
-  }
+      showToast(`Erro ao remover: ${error.message}`, 'error');
+      throw error; // Propaga o erro para ser pego pelo handler do modal
+    }
+  };
 
-  // Certifique-se de que o modal está sendo exibido
-  showConfirmationModal(
-    'Tem certeza que deseja remover este imóvel?<br>Esta ação não pode ser desfeita.',
-    onConfirm
-  );
+  showConfirmationModal('Tem certeza que deseja remover este imóvel?', onConfirm);
 }
 
 // --- Funções do Modal de Confirmação ---
@@ -1001,18 +945,17 @@ document.addEventListener('DOMContentLoaded', () => {
 map.on('click', handleMapClick);
 
 document.getElementById('map').addEventListener('click', (event) => {
-  const target = event.target;
-  
-  // Verifica se o clique foi em um botão dentro do popup
-  const editButton = target.closest('.edit-btn');
-  const removeButton = target.closest('.remove-btn');
-  
-  if (editButton) {
-    const id = editButton.getAttribute('data-id');
-    if (id) handleEditStart(id);
-  } else if (removeButton) {
-    const id = removeButton.getAttribute('data-id');
-    if (id) handleDelete(id);
+  // Garante que a ação só seja disparada por botões dentro do popup do mapa
+  const popupNode = event.target.closest('.leaflet-popup-content');
+  if (!popupNode) return;
+
+  const removePropertyButton = event.target.closest('.remove-btn');
+  const editPropertyButton = event.target.closest('.edit-btn');
+
+  if (removePropertyButton && removePropertyButton.dataset.id) {
+    handleDelete(removePropertyButton.dataset.id);
+  } else if (editPropertyButton && editPropertyButton.dataset.id) {
+    handleEditStart(editPropertyButton.dataset.id);
   }
 });
 
@@ -1132,7 +1075,7 @@ function getPropertyMarkerIcon(propertyType) {
       iconSvg = `<svg viewBox="0 0 16 16"><path d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35L14.75 4H11V2H5v2H1.25L2.97 1.35zM1 5h14v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5zm6 0v2H5V5h2zm2 0v2h2V5H9zm2 3v2H9V8h2zm-2 0v2H7V8h2zm-2 0v2H5V8h2zm2 3v2H9v-2h2zm-2 0v2H7v-2h2z"/></svg>`;
       break;
     default:
-      iconSvg = `<svg viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 1 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`; // Ícone genérico
+      iconSvg = `<svg viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`; // Ícone genérico
   }
 
   const iconPath = getIconPath(iconSvg);
@@ -1164,5 +1107,3 @@ actionModal.addEventListener('click', (e) => {
     hideActionModal();
   }
 });
-  }
-};

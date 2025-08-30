@@ -1,11 +1,8 @@
 # Dependências do Node
-node_modules/
+node_modules
 
 
 # Dados locais e uploads (não devem ser versionados)
 db.json
 users.json
-uploads/
-
-# Variáveis de ambiente
-.env
+/uploads/

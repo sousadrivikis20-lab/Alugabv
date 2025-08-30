@@ -801,175 +801,176 @@ button.loading .spinner {
   background-repeat: no-repeat;
 }
 
-/* --- Botões dos popups (cards dos imóveis) */
-.popup-actions button {
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 16px;
-  border: none;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+/* --- Card do Imóvel no Popup --- */
+.leaflet-popup-content {
+  padding: 18px 14px 14px 14px; /* Mais espaço interno */
+  border-radius: 8px;
+  box-sizing: border-box;
 }
 
-.popup-actions .edit-btn {
-  background: #4fc3f7; /* azul claro, amigável */
-  color: #fff;
+.leaflet-popup-content .property-type-info {
+  margin-bottom: 12px;
+  font-size: 15px;
+  gap: 8px;
 }
 
-.popup-actions .edit-btn:hover {
-  background: #039be5;
-  color: #fff;
-}
-
-.popup-actions .remove-btn {
-  background: #ff3c00; /* laranja amigável */
-  color: #fff;
-}
-
-.popup-actions .remove-btn:hover {
-  background: #f57c00;
-  color: #fff;
-}
-
-/* Ícones dos botões do popup alinhados verticalmente */
-.popup-actions button svg {
-  vertical-align: middle;
-  margin-bottom: 0 !important;
-}
-
-/* --- Botão Colapsável (Gerenciar Conta) --- */
-.collapsible-btn {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 12px 15px;
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-dark);
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.collapsible-btn:hover {
-  background-color: #f0f0f0;
-}
-
-.collapsible-btn .arrow-icon {
-  transition: transform 0.3s ease;
-}
-
-.collapsible-btn.active .arrow-icon {
-  transform: rotate(90deg);
-}
-
-/* --- Conteúdo Colapsável --- */
-.collapsible-content {
-  overflow: hidden;
-  max-height: 0;
-  transition: max-height 0.4s ease-out, margin-top 0.4s ease-out;
-  margin-top: 0;
-}
-
-.collapsible-content:not(.hidden) {
-  max-height: 500px; /* Um valor alto o suficiente para conter os botões */
-  transition: max-height 0.4s ease-in;
-  margin-top: 15px;
-}
-
-/* --- Estilos para o formulário dentro do modal de ação --- */
-.modal-form-group {
-  margin-bottom: 15px;
-  text-align: left;
-}
-
-.modal-form-group label {
+.leaflet-popup-content b {
   display: block;
   margin-bottom: 8px;
-  font-weight: 500;
+  font-size: 18px;
+  color: var(--accent-green);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.leaflet-popup-content .property-description {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-dark);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.leaflet-popup-content span,
+.leaflet-popup-content strong {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.leaflet-popup-content .popup-gallery {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.leaflet-popup-content a {
+  margin-top: 10px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  gap: 7px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.leaflet-popup-content .property-owner {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+  font-size: 13px;
   color: var(--text-muted);
-  font-size: 14px;
+  letter-spacing: 0.5px;
 }
 
-.modal-form-group input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  font-size: 16px;
-  font-family: 'Poppins', sans-serif;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+/* Espaçamento entre linhas de preço */
+.leaflet-popup-content span + br,
+.leaflet-popup-content strong + br {
+  display: none;
 }
 
-.modal-form-group input:focus {
-  outline: none;
-  border-color: var(--accent-green);
-  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
+.leaflet-popup-content span {
+  display: block;
+  margin-bottom: 6px;
 }
 
-/* Ícone do WhatsApp alinhado com texto */
-.leaflet-popup-content a svg {
-  vertical-align: middle;
-  margin-bottom: 0 !important;
-}
-
-/* Atualiza os estilos dos botões do popup */
+/* Espaço entre botões de ação */
 .popup-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
+  margin-top: 12px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px; /* Volta para o padrão anterior */
 }
 
-.popup-actions .btn-edit,
-.popup-actions .btn-delete {
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+
+/* --- Design Responsivo --- */
+@media (max-width: 768px) {
+
+  body, html {
+    overflow: visible; /* Permite rolagem em telas menores */
+  }
+
+  .container {
+    flex-direction: column;
+    height: auto; /* Altura automática para permitir rolagem */
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: none; /* Remove a altura máxima */
+    transform: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 20px 15px; /* Padding reduzido para telas menores */
+    overflow-y: visible; /* Remove a rolagem interna da sidebar */
+  }
+
+  #map-container {
+    height: 60vh; /* Altura fixa para o mapa */
+    min-height: 400px; /* Garante uma altura mínima usável */
+    flex-grow: 0; /* Impede que cresça para preencher o espaço */
+  }
+
+  .sidebar header {
+    margin-bottom: 20px;
+  }
 }
 
-.popup-actions .btn-edit:hover,
-.popup-actions .btn-delete:hover {
-    transform: scale(1.05);
+@media (max-width: 480px) {
+  .logo {
+    font-size: 24px; /* Reduz o tamanho da logo em telas muito pequenas */
+  }
+
+  .tagline {
+    font-size: 13px;
+  }
 }
 
-.popup-actions .btn-edit {
-    background-color: #007bff;
+/* Adicione ao seu style.css */
+
+.popup-gallery {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
 }
 
-.popup-actions .btn-edit:hover {
-    background-color: #0056b3;
+.popup-gallery img {
+  width: 150px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+  scroll-snap-align: start;
+  flex-shrink: 0;
 }
 
-.popup-actions .btn-delete {
-    background-color: #dc3545;
+/* --- Estilos de Carregamento (Spinner) --- */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 1s ease-in-out infinite;
 }
 
-.popup-actions .btn-delete:hover {
-    background-color: #c82333;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-/* Remove os estilos antigos que não serão mais usados */
-.popup-actions .edit-btn,
-.popup-actions .remove-btn {
-    display: none;
+button.loading {
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+button.loading span {
+  visibility: hidden;
 }
 
 button.loading .spinner {
