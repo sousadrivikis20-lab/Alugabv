@@ -3,10 +3,11 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const multer = require('multer');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
-const dataManager = require('./data-manager'); // Importa o novo módulo
-const pg = require('pg');
-const cloudinary = require('cloudinary').v2;
+const dataManager = require('./data-manager-pg'); // Usa o gerenciador do PostgreSQL
+const pgSession = require('connect-pg-simple')(session);
+const { Pool } = require('pg');
 require('dotenv').config();
 
 const app = express();
@@ -14,10 +15,11 @@ const PORT = process.env.PORT || 3000;
 
 // --- Configuração do Multer para Upload de Imagens ---
 const storage = multer.diskStorage({
+    // ATENÇÃO: O disco do Render é efêmero. Uploads locais serão perdidos em reinicializações.
+    // O ideal seria fazer upload direto para um serviço como Cloudinary ou AWS S3.
     destination: function (req, file, cb) {
-        const uploadPath = path.join(dataManager.dataDir, 'uploads');
-        // Garante que o diretório de uploads exista no disco persistente
-        require('fs').mkdirSync(uploadPath, { recursive: true });
+        const uploadPath = path.join(__dirname, 'uploads');
+        fs.mkdirSync(uploadPath, { recursive: true });
         cb(null, uploadPath);
     },
     filename: function (req, file, cb) {
@@ -31,7 +33,7 @@ const upload = multer({ storage: storage });
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Para parsear application/x-www-form-urlencoded
-app.use('/uploads', express.static(path.join(dataManager.dataDir, 'uploads'))); // Servir imagens da pasta uploads do disco persistente
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Servir imagens da pasta uploads
 
 // Verifica se a SESSION_SECRET foi definida no .env
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_super_secreto_aqui_com_pelo_menos_32_caracteres') {
@@ -40,11 +42,23 @@ if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_s
     process.exit(1);
 }
 
+// Configuração do Pool do PostgreSQL para o connect-pg-simple
+const pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
+
 // Configuração da Sessão
 app.use(session({
+    store: new pgSession({
+        pool: pgPool,
+        tableName: 'user_sessions' // Nome da tabela para guardar as sessões
+    }),
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Alterado para true para salvar sessões de visitantes
     cookie: { 
         secure: process.env.NODE_ENV === 'production', // Use cookies seguros em produção (HTTPS)
         httpOnly: true, 
@@ -59,16 +73,16 @@ const isOwner = (req, res, next) => (req.session.user && req.session.user.role =
 const isPropertyOwner = async (req, res, next) => {
     try {
         const { id } = req.params; // id do imóvel
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || []; // Assume que 'db.json' tem uma chave 'imoveis'
+        // Ineficiente, mas funciona com as funções atuais. O ideal seria ter uma função "findPropertyById".
+        const properties = await dataManager.readImoveis();
         const property = properties.find(p => p.id === id);
 
         if (!property) {
             return res.status(404).json({ message: 'Imóvel não encontrado.' });
         }
 
-        if (property.ownerId !== req.session.user.id) {
-            return res.status(403).json({ message: 'Você não tem permissão para realizar esta ação.' });
+        if (property.ownerId !== req.session.user.id && req.session.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Você não tem permissão para alterar este imóvel.' });
         }
         req.property = property; // Passa o imóvel para o próximo handler
         next();
@@ -86,14 +100,18 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
 
-        const users = await dataManager.readUsers();
-        if (users.find(u => u.username === username)) {
+        const existingUser = await dataManager.findUserByUsername(username);
+        if (existingUser) {
             return res.status(409).json({ message: 'Usuário já existe.' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        users.push({ id: uuidv4(), username, password: hashedPassword, role });
-        await dataManager.writeUsers(users);
+        const newUser = { id: uuidv4(), username, password: hashedPassword, role };
+        
+        const createdUser = await dataManager.createUser(newUser);
+        if (!createdUser) {
+            return res.status(409).json({ message: 'Usuário já existe (conflito no banco de dados).' });
+        }
         res.status(201).json({ message: 'Usuário registrado com sucesso!' });
     } catch (error) {
         console.error("Erro no registro de usuário:", error);
@@ -104,8 +122,7 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        const users = await dataManager.readUsers();
-        const user = users.find(u => u.username === username);
+        const user = await dataManager.findUserByUsername(username);
 
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
@@ -141,8 +158,8 @@ app.get('/api/auth/session', (req, res) => {
 // --- Rotas dos Imóveis ---
 app.get('/api/imoveis', async (req, res) => {
     try {
-        const propertiesData = await dataManager.readImoveis();
-        res.json(propertiesData.imoveis || []);
+        const properties = await dataManager.readImoveis();
+        res.json(properties || []);
     } catch (error) {
         console.error("Erro ao carregar imóveis:", error);
         res.status(500).json({ message: 'Erro ao carregar imóveis.' });
@@ -157,8 +174,6 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
 
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
         const newProperty = {
             id: uuidv4(),
             nome,
@@ -172,11 +187,10 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             coords: JSON.parse(coords),
             ownerId: req.session.user.id,
             ownerUsername: req.session.user.username,
-            images: req.files ? req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/")) : []
+            images: req.files ? req.files.map(file => path.join('uploads', file.filename).replace(/\\/g, "/")) : []
         };
 
-        properties.push(newProperty);
-        await dataManager.writeImoveis({ imoveis: properties });
+        await dataManager.addProperty(newProperty);
 
         res.status(201).json({ message: 'Imóvel adicionado com sucesso!', property: newProperty });
     } catch (error) {
@@ -188,35 +202,31 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
 app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imagens', 5), async (req, res) => {
     try {
         const { id } = req.params;
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
-        const propertyIndex = properties.findIndex(p => p.id === id);
+        const existingProperty = req.property; // Obtido do middleware isPropertyOwner
 
-        if (propertyIndex === -1) {
-            return res.status(404).json({ message: 'Imóvel não encontrado.' });
-        }
-
-        const propertyToUpdate = properties[propertyIndex];
-
-        if (req.body.nome !== undefined) propertyToUpdate.nome = req.body.nome;
-        if (req.body.descricao !== undefined) propertyToUpdate.descricao = req.body.descricao;
-        if (req.body.contato !== undefined) propertyToUpdate.contato = req.body.contato;
-        if (req.body.transactionType !== undefined) propertyToUpdate.transactionType = req.body.transactionType;
-        if (req.body.propertyType !== undefined) propertyToUpdate.propertyType = req.body.propertyType;
-        if (req.body.coords) propertyToUpdate.coords = JSON.parse(req.body.coords);
-        if (req.body.salePrice !== undefined) propertyToUpdate.salePrice = req.body.salePrice ? parseFloat(req.body.salePrice) : null;
-        if (req.body.rentalPrice !== undefined) propertyToUpdate.rentalPrice = req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null;
-        if (req.body.rentalPeriod !== undefined) propertyToUpdate.rentalPeriod = req.body.rentalPeriod || null;
+        // Construir o objeto com os dados atualizados
+        const updatedData = {
+            nome: req.body.nome || existingProperty.nome,
+            descricao: req.body.descricao || existingProperty.descricao,
+            contato: req.body.contato || existingProperty.contato,
+            transactionType: req.body.transactionType || existingProperty.transactionType,
+            propertyType: req.body.propertyType || existingProperty.propertyType,
+            coords: req.body.coords ? JSON.parse(req.body.coords) : existingProperty.coords,
+            salePrice: req.body.salePrice ? parseFloat(req.body.salePrice) : existingProperty.salePrice,
+            rentalPrice: req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : existingProperty.rentalPrice,
+            rentalPeriod: req.body.rentalPeriod || existingProperty.rentalPeriod,
+            images: existingProperty.images || [],
+            ownerId: req.session.user.id // Passa o ownerId para a verificação de segurança na função
+        };
 
         if (req.files && req.files.length > 0) {
-            const newImages = req.files.map(file => path.relative(dataManager.dataDir, file.path).replace(/\\/g, "/"));
-            propertyToUpdate.images = [...(propertyToUpdate.images || []), ...newImages];
+            const newImages = req.files.map(file => path.join('uploads', file.filename).replace(/\\/g, "/"));
+            updatedData.images = [...updatedData.images, ...newImages];
         }
 
-        properties[propertyIndex] = propertyToUpdate;
-        await dataManager.writeImoveis({ imoveis: properties });
+        const updatedProperty = await dataManager.updateProperty(id, updatedData);
 
-        res.json({ message: 'Imóvel atualizado com sucesso!', property: propertyToUpdate });
+        res.json({ message: 'Imóvel atualizado com sucesso!', property: updatedProperty });
     } catch (error) {
         console.error('Erro ao atualizar imóvel:', error);
         res.status(500).json({ message: 'Ocorreu um erro interno ao atualizar o imóvel.' });
@@ -232,25 +242,19 @@ app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (r
             return res.status(400).json({ message: 'Caminho da imagem é obrigatório.' });
         }
 
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
-        const propertyIndex = properties.findIndex(p => p.id === id);
+        const propertyToUpdate = { ...req.property }; // Copia o imóvel do middleware
+        propertyToUpdate.images = (propertyToUpdate.images || []).filter(img => img !== imagePath);
+        propertyToUpdate.ownerId = req.session.user.id; // Adiciona para a função de update
 
-        if (propertyIndex === -1) {
-            return res.status(404).json({ message: 'Imóvel não encontrado.' });
-        }
-
-        const propertyToUpdate = properties[propertyIndex];
-        propertyToUpdate.images = propertyToUpdate.images.filter(img => img !== imagePath);
-
-        require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
+        // Deleta o arquivo físico
+        fs.unlink(path.join(__dirname, imagePath), (err) => {
             if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
         });
 
-        properties[propertyIndex] = propertyToUpdate;
-        await dataManager.writeImoveis({ imoveis: properties });
+        // Atualiza o registro no banco de dados
+        const updatedProperty = await dataManager.updateProperty(id, propertyToUpdate);
 
-        res.json({ message: 'Imagem removida com sucesso!', property: propertyToUpdate });
+        res.json({ message: 'Imagem removida com sucesso!', property: updatedProperty });
     } catch (error) {
         console.error('Erro ao remover imagem do imóvel:', error);
         res.status(500).json({ message: 'Ocorreu um erro interno ao remover a imagem.' });
@@ -260,25 +264,24 @@ app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (r
 app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res) => {
     try {
         const { id } = req.params;
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
-        const propertyIndex = properties.findIndex(p => p.id === id);
+        const propertyToDelete = req.property; // Obtido do middleware
 
-        if (propertyIndex === -1) {
-            return res.status(404).json({ message: 'Imóvel não encontrado para exclusão.' });
-        }
-
-        if (req.property.images && req.property.images.length > 0) {
-            req.property.images.forEach(imagePath => {
-                require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
+        // Deleta as imagens associadas do sistema de arquivos
+        if (propertyToDelete.images && propertyToDelete.images.length > 0) {
+            propertyToDelete.images.forEach(imagePath => {
+                fs.unlink(path.join(__dirname, imagePath), (err) => {
                     if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
                 });
             });
         }
 
-        properties.splice(propertyIndex, 1);
-        await dataManager.writeImoveis({ imoveis: properties });
-        res.json({ message: 'Imóvel removido com sucesso.' });
+        const deletedCount = await dataManager.deleteProperty(id, req.session.user.id);
+        
+        if (deletedCount > 0) {
+            res.json({ message: 'Imóvel removido com sucesso.' });
+        } else {
+            res.status(404).json({ message: 'Imóvel não encontrado ou você não tem permissão para remover.' });
+        }
     } catch (error) {
         console.error('Erro ao remover imóvel:', error);
         res.status(500).json({ message: 'Ocorreu um erro interno ao remover o imóvel.' });
@@ -286,6 +289,7 @@ app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res
 });
 
 // --- Rotas de Gerenciamento de Usuário ---
+// ATENÇÃO: Estas rotas ainda usam o padrão antigo de ler/escrever todos os usuários. Devem ser refatoradas.
 
 // Rota para excluir usuário
 app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
@@ -318,8 +322,8 @@ app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
             // Deleta as imagens dos imóveis removidos
             propertiesToRemove.forEach(property => {
                 if (property.images && property.images.length > 0) {
-                    property.images.forEach(imagePath => {
-                        require('fs').unlink(path.join(dataManager.dataDir, imagePath), (err) => {
+                    property.images.forEach(imagePath => { // ATENÇÃO: Caminho pode precisar de ajuste
+                        fs.unlink(path.join(__dirname, imagePath), (err) => {
                             if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
                         });
                     });
@@ -419,11 +423,11 @@ app.use(express.static(path.join(__dirname)));
 // --- Função para iniciar o servidor de forma segura ---
 async function startServer() {
     try {
-        // 1. Garante que os arquivos de dados e diretórios existam ANTES de o servidor começar a ouvir.
-        await dataManager.initializeDataFiles();
-        console.log('Arquivos de dados inicializados com sucesso.');
+        // 1. Garante que as tabelas do banco de dados existam.
+        await dataManager.initDB();
+        console.log('Banco de dados inicializado com sucesso.');
 
-        // 2. Inicia o servidor apenas após a inicialização bem-sucedida.
+        // 2. Inicia o servidor.
         app.listen(PORT, () => {
             console.log(`Servidor rodando na porta ${PORT}`);
         });
@@ -435,5 +439,4 @@ async function startServer() {
 }
 
 // Inicia a aplicação
-startServer();
 startServer();
