@@ -5,6 +5,8 @@ const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const dataManager = require('./data-manager'); // Importa o novo módulo
+const pg = require('pg');
+const cloudinary = require('cloudinary').v2;
 require('dotenv').config();
 
 const app = express();
@@ -399,9 +401,6 @@ app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
         const user = users.find(user => user.id === id);
         if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
 
-        const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
-        if (!isPasswordValid) return res.status(401).json({ message: 'Senha atual incorreta.' });
-
         user.password = await bcrypt.hash(newPassword, 10);
         await dataManager.writeUsers(users);
 
@@ -436,4 +435,5 @@ async function startServer() {
 }
 
 // Inicia a aplicação
+startServer();
 startServer();
