@@ -103,12 +103,11 @@ function showToast(message, type = 'info') {
   toast.innerHTML = `${iconSvg}<span>${message}</span>`;
   container.appendChild(toast);
 
-  toast.addEventListener('animationend', (e) => {
-    if (e.animationName === 'slideOut') {
-      toast.remove();
-    }
-  });
-}
+toast.addEventListener('animationend', (e) => {
+  if (e.animationName === 'slideOut') {
+    toast.remove();
+  }
+});
 
 // Feedback de Carregamento em Botões
 function toggleLoading(button, isLoading) {
@@ -179,8 +178,7 @@ function updateUIForUser() {
     const property = marker.propertyData;
     if (property) {
       marker.setPopupContent(createPopupContent(property));
-    }
-  });
+  }  });
 }
 
 function togglePropertyForm() {
@@ -777,8 +775,7 @@ async function handleDelete(id) {
       console.error('Erro ao excluir imóvel:', error);
       showToast('Erro ao excluir imóvel. Tente novamente.', 'error');
       hideConfirmationModal();
-    }
-  };
+  }
 
   // Certifique-se de que o modal está sendo exibido
   showConfirmationModal(
@@ -1179,4 +1176,4 @@ actionModal.addEventListener('click', (e) => {
   }
 });
   }
-});
+};
