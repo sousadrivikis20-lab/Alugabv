@@ -131,22 +131,17 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const users = await dataManager.readUsers();
-        const user = users.find(u => u.username === username);
+  const { username, password } = req.body;
+  const users = await dataManager.readUsers();
+  const user = users.find(u => u.username === username);
 
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
-        }
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
+  }
 
-        const userSessionData = { id: user.id, username: user.username, role: user.role };
-        req.session.user = userSessionData;
-        res.json({ message: 'Login bem-sucedido!', user: userSessionData });
-    } catch (error) {
-        console.error("Erro no login:", error);
-        res.status(500).json({ message: 'Ocorreu um erro interno durante o login.' });
-    }
+  const userSessionData = { id: user.id, username: user.username, role: user.role };
+  req.session.user = userSessionData;
+  res.json({ message: 'Login bem-sucedido!', user: userSessionData });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -181,6 +176,11 @@ app.get('/api/imoveis', async (req, res) => {
 app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), async (req, res) => {
     try {
         const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao } = req.body;
+        const userId = req.session.user.id;
+
+        if (!userId) {
+            return res.status(401).send('Não autorizado.');
+        }
         
         // Upload das imagens para o Cloudinary
         const uploadPromises = req.files ? req.files.map(file => {
@@ -209,7 +209,7 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             rentalPrice: rentalPrice ? parseFloat(rentalPrice) : null,
             rentalPeriod: rentalPeriod || null,
             coords: JSON.parse(coords),
-            ownerId: req.session.user.id,
+            ownerId: userId,
             ownerUsername: req.session.user.username,
             images: imageUrls
         };
@@ -229,25 +229,11 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
 app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imagens', 5), async (req, res) => {
     try {
         const { id } = req.params;
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
-        const propertyIndex = properties.findIndex(p => p.id === id);
+        const userId = req.session.user.id;
 
-        if (propertyIndex === -1) {
-            return res.status(404).json({ message: 'Imóvel não encontrado.' });
+        if (!userId) {
+            return res.status(401).send('Não autorizado.');
         }
-
-        const propertyToUpdate = properties[propertyIndex];
-
-        if (req.body.nome !== undefined) propertyToUpdate.nome = req.body.nome;
-        if (req.body.descricao !== undefined) propertyToUpdate.descricao = req.body.descricao;
-        if (req.body.contato !== undefined) propertyToUpdate.contato = req.body.contato;
-        if (req.body.transactionType !== undefined) propertyToUpdate.transactionType = req.body.transactionType;
-        if (req.body.propertyType !== undefined) propertyToUpdate.propertyType = req.body.propertyType;
-        if (req.body.coords) propertyToUpdate.coords = JSON.parse(req.body.coords);
-        if (req.body.salePrice !== undefined) propertyToUpdate.salePrice = req.body.salePrice ? parseFloat(req.body.salePrice) : null;
-        if (req.body.rentalPrice !== undefined) propertyToUpdate.rentalPrice = req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null;
-        if (req.body.rentalPeriod !== undefined) propertyToUpdate.rentalPeriod = req.body.rentalPeriod || null;
 
         // Upload das novas imagens para o Cloudinary
         const uploadPromises = req.files ? req.files.map(file => {
@@ -264,12 +250,28 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
         }) : [];
 
         const newImageUrls = await Promise.all(uploadPromises);
-        propertyToUpdate.images = [...(propertyToUpdate.images || []), ...newImageUrls];
 
-        properties[propertyIndex] = propertyToUpdate;
-        await dataManager.writeImoveis({ imoveis: properties });
+        // Combina imagens existentes com novas imagens
+        const existingImages = req.property.images || [];
+        const updatedImages = [...existingImages, ...newImageUrls];
 
-        res.json({ message: 'Imóvel atualizado com sucesso!', property: propertyToUpdate });
+        const propertyData = {
+            nome: req.body.nome,
+            descricao: req.body.descricao,
+            contato: req.body.contato,
+            coords: JSON.parse(req.body.coords || '{}'),
+            ownerId: req.session.user.id,
+            ownerUsername: req.session.user.username,
+            transactionType: req.body.transactionType,
+            propertyType: req.body.propertyType,
+            salePrice: req.body.salePrice ? parseFloat(req.body.salePrice) : null,
+            rentalPrice: req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : null,
+            rentalPeriod: req.body.rentalPeriod || null,
+            images: updatedImages
+        };
+
+        const updatedProperty = await dataManager.updateImovel(id, propertyData);
+        res.json({ message: 'Imóvel atualizado com sucesso!', property: updatedProperty });
     } catch (error) {
         console.error('Erro ao atualizar imóvel:', error);
         res.status(500).json({ message: 'Ocorreu um erro interno ao atualizar o imóvel.' });
@@ -277,35 +279,32 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
 });
 
 app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const propertiesData = await dataManager.readImoveis();
-        const properties = propertiesData.imoveis || [];
-        const propertyIndex = properties.findIndex(p => p.id === id);
+  try {
+    const { id } = req.params;
+    const userId = req.session.user.id;
 
-        if (propertyIndex === -1) {
-            return res.status(404).json({ message: 'Imóvel não encontrado para exclusão.' });
-        }
-
-        // Remove imagens do Cloudinary
-        if (req.property.images && req.property.images.length > 0) {
-            for (const imageUrl of req.property.images) {
-                try {
-                    const publicId = imageUrl.split('/').pop().split('.')[0];
-                    await cloudinary.uploader.destroy(`alugabv/${publicId}`);
-                } catch (err) {
-                    console.error('Erro ao deletar imagem do Cloudinary:', err);
-                }
-            }
-        }
-
-        properties.splice(propertyIndex, 1);
-        await dataManager.writeImoveis({ imoveis: properties });
-        res.json({ message: 'Imóvel removido com sucesso.' });
-    } catch (error) {
-        console.error('Erro ao remover imóvel:', error);
-        res.status(500).json({ message: 'Ocorreu um erro interno ao remover o imóvel.' });
+    if (!userId) {
+      return res.status(401).send('Não autorizado.');
     }
+
+    // Remove imagens do Cloudinary antes de deletar o imóvel
+    if (req.property.images && req.property.images.length > 0) {
+      for (const imageUrl of req.property.images) {
+        try {
+          const publicId = `alugabv/${imageUrl.split('/').pop().split('.')[0]}`;
+          await cloudinary.uploader.destroy(publicId);
+        } catch (err) {
+          console.error('Erro ao deletar imagem do Cloudinary:', err);
+        }
+      }
+    }
+
+    await dataManager.deleteImovel(id);
+    res.json({ message: 'Imóvel removido com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao remover imóvel:', error);
+    res.status(500).json({ message: 'Ocorreu um erro interno ao remover o imóvel.' });
+  }
 });
 
 // --- Rotas de Gerenciamento de Usuário ---
@@ -521,4 +520,5 @@ async function startServer() {
 }
 
 // Inicia a aplicação
+startServer();
 startServer();

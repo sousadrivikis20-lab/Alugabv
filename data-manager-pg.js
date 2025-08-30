@@ -1,5 +1,4 @@
 const { Pool } = require('pg');
-const path = require('path');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -65,108 +64,164 @@ async function readImoveis() {
   }
 }
 
-async function writeImoveis(data) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    if (data.imoveis) {
-      await client.query('DELETE FROM properties');
-      
-      for (const property of data.imoveis) {
-        await client.query(`
-          INSERT INTO properties (
-            id, nome, descricao, contato, coords, 
-            owner_id, owner_username, transaction_type, 
-            property_type, sale_price, rental_price, 
-            rental_period, images
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        `, [
-          property.id,
-          property.nome,
-          property.descricao,
-          property.contato,
-          property.coords,
-          property.ownerId,
-          property.ownerUsername,
-          property.transactionType || 'Vender',
-          property.propertyType || 'Casa',
-          property.salePrice,
-          property.rentalPrice,
-          property.rentalPeriod,
-          property.images || []
-        ]);
-      }
-    }
-    
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Erro ao escrever imóveis:', err);
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-
-async function readUsers() {
+async function addProperty(property) {
   try {
     const result = await pool.query(`
-      SELECT id, username, password, role 
-      FROM users;
-    `);
-    return result.rows;
+      INSERT INTO properties (
+        id, nome, descricao, contato, coords, 
+        owner_id, owner_username, transaction_type, 
+        property_type, sale_price, rental_price, 
+        rental_period, images
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING *;
+    `, [
+      property.id,
+      property.nome,
+      property.descricao,
+      property.contato,
+      property.coords,
+      property.ownerId,
+      property.ownerUsername,
+      property.transactionType || 'Vender',
+      property.propertyType || 'Casa',
+      property.salePrice,
+      property.rentalPrice,
+      property.rentalPeriod,
+      property.images || []
+    ]);
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      nome: row.nome,
+      descricao: row.descricao,
+      contato: row.contato,
+      coords: row.coords,
+      ownerId: row.owner_id,
+      ownerUsername: row.owner_username,
+      transactionType: row.transaction_type,
+      propertyType: row.property_type,
+      salePrice: row.sale_price,
+      rentalPrice: row.rental_price,
+      rentalPeriod: row.rental_period,
+      images: row.images || []
+    };
   } catch (err) {
-    console.error('Erro ao ler usuários:', err);
+    console.error('Erro ao adicionar imóvel:', err);
     throw err;
   }
 }
 
-async function writeUsers(users) {
+async function updateProperty(id, propertyData) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
-    // Se estamos atualizando apenas um usuário
-    if (users.length === 1) {
-      const user = users[0];
-      await client.query(`
-        UPDATE users 
-        SET username = $1, password = $2, role = $3
-        WHERE id = $4;
-        
-        INSERT INTO users (id, username, password, role)
-        SELECT $4, $1, $2, $3
-        WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = $4);
-      `, [user.username, user.password, user.role, user.id]);
-    } else {
-      // Se estamos reescrevendo todos os usuários
-      await client.query('DELETE FROM users');
-      
-      for (const user of users) {
-        await client.query(`
-          INSERT INTO users (id, username, password, role)
-          VALUES ($1, $2, $3, $4)
-        `, [user.id, user.username, user.password, user.role]);
-      }
-    }
-    
+
+    const result = await client.query(`
+      UPDATE properties 
+      SET nome = $1,
+          descricao = $2,
+          contato = $3,
+          coords = $4,
+          owner_id = $5,
+          owner_username = $6,
+          transaction_type = $7,
+          property_type = $8,
+          sale_price = $9,
+          rental_price = $10,
+          rental_period = $11,
+          images = $12
+      WHERE id = $13
+      RETURNING *;
+    `, [
+      propertyData.nome,
+      propertyData.descricao,
+      propertyData.contato,
+      JSON.stringify(propertyData.coords),
+      propertyData.ownerId,
+      propertyData.ownerUsername,
+      propertyData.transactionType,
+      propertyData.propertyType,
+      propertyData.salePrice,
+      propertyData.rentalPrice,
+      propertyData.rentalPeriod,
+      propertyData.images,
+      id
+    ]);
+
     await client.query('COMMIT');
+    return result.rows[0];
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Erro ao escrever usuários:', err);
+    console.error('Erro ao atualizar imóvel:', err);
     throw err;
   } finally {
     client.release();
+  }
+}
+
+async function deleteProperty(id, ownerId) {
+  try {
+    // Garante que o usuário só delete seus próprios imóveis
+    const result = await pool.query('DELETE FROM properties WHERE id = $1 AND owner_id = $2', [id, ownerId]);
+    return result.rowCount; // Retorna 1 se deletou, 0 se não encontrou ou não é o dono
+  } catch (err) {
+    console.error(`Erro ao deletar imóvel ${id}:`, err);
+    throw err;
+  }
+}
+
+async function deleteImovel(id) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM properties WHERE id = $1', [id]);
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao deletar imóvel:', err);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function findUserByUsername(username) {
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    return result.rows[0];
+  } catch (err) {
+    console.error(`Erro ao buscar usuário ${username}:`, err);
+    throw err;
+  }
+}
+
+async function createUser(user) {
+  try {
+    const result = await pool.query(`
+      INSERT INTO users (id, username, password, role)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (username) DO NOTHING
+      RETURNING id, username, role;
+    `, [user.id, user.username, user.password, user.role]);
+    
+    if (result.rowCount === 0) { // Conflito de username, usuário já existe
+        return null;
+    }
+    return result.rows[0];
+  } catch (err) {
+    console.error('Erro ao criar usuário:', err);
+    throw err;
   }
 }
 
 module.exports = {
   initDB,
-  readUsers,
-  writeUsers,
+  findUserByUsername,
+  createUser,
   readImoveis,
-  writeImoveis,
-  dataDir: path.join(process.cwd(), 'data')
+  addProperty,
+  updateProperty,
+  deleteProperty,
+  deleteImovel
 };
-
