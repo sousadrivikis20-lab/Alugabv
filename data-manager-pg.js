@@ -31,6 +31,20 @@ async function initDB() {
         images TEXT[]
       );
     `);
+
+    // Adiciona a criação da tabela de sessões, usada pelo connect-pg-simple
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "user_sessions" (
+        "sid" varchar NOT NULL PRIMARY KEY,
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL
+      );
+    `);
+
+    // Adiciona o índice para a tabela de sessões para otimizar a performance
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS "IDX_user_sessions_expire" ON "user_sessions" ("expire");
+    `);
     console.log('Banco de dados inicializado com sucesso');
   } catch (err) {
     console.error('Erro ao inicializar banco de dados:', err);
