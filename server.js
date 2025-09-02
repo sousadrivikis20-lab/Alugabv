@@ -74,11 +74,15 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: { 
-        secure: process.env.NODE_ENV === 'production', // Força o uso de cookies seguros em produção (HTTPS). É mais explícito e confiável.
+        // Em produção (Render), a conexão é HTTPS. 'secure: true' é obrigatório.
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true, 
         maxAge: 24 * 60 * 60 * 1000, // 1 dia
-        sameSite: 'lax' // Essencial para segurança e compatibilidade de navegadores.
-    }
+        // 'lax' é o padrão, mas 'none' pode ser necessário em alguns cenários de proxy.
+        // 'none' exige que 'secure' seja true, o que já acontece em produção.
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    },
+    proxy: true // Força o express-session a confiar no cabeçalho X-Forwarded-Proto.
 }));
 
 // --- Middlewares de Autenticação ---
