@@ -97,7 +97,27 @@ const isPropertyOwner = async (req, res, next) => {
     }
 };
 
+// --- Middleware de Depuração ---
+// Este middleware nos ajudará a ver o que está acontecendo com a sessão em cada requisição.
+const debugSession = (req, res, next) => {
+  const cookies = req.headers.cookie || 'Nenhum cookie enviado';
+  console.log(`[DEBUG] Rota: ${req.method} ${req.originalUrl}`);
+  console.log(`[DEBUG] Cookies recebidos: ${cookies}`);
+  
+  // Usamos uma cópia para evitar problemas com referências circulares no log
+  const sessionCopy = req.session ? JSON.parse(JSON.stringify(req.session)) : null;
+  console.log('[DEBUG] req.session ANTES da rota:', sessionCopy);
+
+  res.on('finish', () => {
+    console.log('----------------------------------------------------');
+  });
+
+  next();
+};
+
 // --- Rotas de Autenticação ---
+app.use('/api', debugSession); // Aplicar o middleware de debug em todas as rotas /api/*
+
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { username, password, role } = req.body;
