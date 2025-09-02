@@ -1075,29 +1075,35 @@ button.loading .spinner {
   font-size: 13px;
   font-weight: 600;
   padding: 8px 16px;
-  border: none;
+  border: 1px solid;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #ffffff; /* Cor do texto branca para ambos */
+  background-color: transparent;
 }
 
 .popup-actions .edit-btn {
-  background-color: var(--accent-green); /* Usa a cor de destaque do site */
+  color: var(--accent-green);
+  border-color: var(--accent-green);
 }
 
 .popup-actions .edit-btn:hover {
   background-color: var(--accent-green-hover);
+  color: #ffffff;
+  border-color: var(--accent-green-hover);
 }
 
 .popup-actions .remove-btn {
-  background-color: var(--danger-red); /* Usa a cor de perigo definida */
+  color: var(--danger-red);
+  border-color: var(--danger-red);
 }
 
 .popup-actions .remove-btn:hover {
   background-color: var(--danger-red-hover);
+  color: #ffffff;
+  border-color: var(--danger-red-hover);
 }
 
 /* Ícones dos botões do popup alinhados verticalmente */
