@@ -7,7 +7,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const dataManager = require('./data-manager-pg');
 const pgSession = require('connect-pg-simple')(session);
-const { Pool } = require('pg');
+const pgPool = require('./db'); // Importa o pool de conexão compartilhado
 require('dotenv').config();
 
 // Log de ambiente - crucial para depuração
@@ -53,14 +53,6 @@ if (!process.env.DATABASE_URL) {
     console.error('ERRO FATAL: DATABASE_URL não está definida no ambiente.');
     process.exit(1);
 }
-
-// Pool de Conexão com o PostgreSQL
-const pgPool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false // Necessário para conexões internas no Render
-    }
-});
 
 // Configuração da Sessão - Versão Definitiva para Produção
 app.use(session({
