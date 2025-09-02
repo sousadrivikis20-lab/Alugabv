@@ -5,23 +5,25 @@ const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
-const dataManager = require('./data-manager-pg'); // Usa o gerenciador do PostgreSQL
+const dataManager = require('./data-manager-pg');
 const pgSession = require('connect-pg-simple')(session);
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// Log de ambiente - crucial para depuração
+console.log(`[INFO] NODE_ENV está definido como: ${process.env.NODE_ENV}`);
+
 const app = express();
 
-// Confia no proxy reverso (necessário para o Render e outras plataformas de hospedagem)
-// Isso garante que o cookie seguro (secure: true) funcione corretamente em produção (HTTPS)
+// Confiança no Proxy - ESSENCIAL para o Render
+// Isso informa ao Express que ele está atrás de um proxy e deve confiar
+// nos cabeçalhos X-Forwarded-*, como X-Forwarded-Proto (https).
 app.set('trust proxy', 1);
 
 const PORT = process.env.PORT || 3000;
 
 // --- Configuração do Multer para Upload de Imagens ---
 const storage = multer.diskStorage({
-    // ATENÇÃO: O disco do Render é efêmero. Uploads locais serão perdidos em reinicializações.
-    // O ideal seria fazer upload direto para um serviço como Cloudinary ou AWS S3.
     destination: function (req, file, cb) {
         const uploadPath = path.join(__dirname, 'uploads');
         fs.mkdirSync(uploadPath, { recursive: true });
@@ -32,58 +34,57 @@ const storage = multer.diskStorage({
         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
-
 const upload = multer({ storage: storage });
 
 // Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Para parsear application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true }));
 
-// --- Servir Arquivos Estáticos ---
-// A melhor prática é servir arquivos de uma pasta 'public' dedicada.
-// Isso evita a exposição acidental de arquivos do servidor como server.js.
+// Servir arquivos estáticos da pasta 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Verifica se a SESSION_SECRET foi definida no .env
-if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_super_secreto_aqui_com_pelo_menos_32_caracteres') {
-    console.error('ERRO FATAL: A variável de ambiente SESSION_SECRET não está definida ou está usando o valor padrão.');
-    console.error('Por favor, crie um arquivo .env, gere uma chave segura e adicione em SESSION_SECRET.');
+// Verificações de inicialização
+if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.includes('seu_segredo')) {
+    console.error('ERRO FATAL: SESSION_SECRET não está definida corretamente no ambiente.');
     process.exit(1);
 }
 if (!process.env.DATABASE_URL) {
-    console.error('ERRO FATAL: A variável de ambiente DATABASE_URL não está definida.');
+    console.error('ERRO FATAL: DATABASE_URL não está definida no ambiente.');
     process.exit(1);
 }
 
-// Configuração do Pool do PostgreSQL para o connect-pg-simple
+// Pool de Conexão com o PostgreSQL
 const pgPool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false // Necessário para conexões internas no Render
     }
 });
 
-// Configuração da Sessão
+// Configuração da Sessão - Versão Definitiva para Produção
 app.use(session({
     store: new pgSession({
         pool: pgPool,
-        tableName: 'user_sessions' // Nome da tabela para guardar as sessões
+        tableName: 'user_sessions'
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { 
-        // Em produção (Render), a conexão é HTTPS. 'secure: true' é obrigatório.
+    cookie: {
+        // secure: true é OBRIGATÓRIO para 'sameSite: "none"' e para produção HTTPS.
+        // O 'trust proxy' garante que o Express saiba que a conexão é segura.
         secure: process.env.NODE_ENV === 'production',
-        httpOnly: true, 
+        httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 dia
-        // 'lax' é o padrão, mas 'none' pode ser necessário em alguns cenários de proxy.
-        // 'none' exige que 'secure' seja true, o que já acontece em produção.
+        // 'none' é a configuração mais permissiva e robusta para iframes ou cenários complexos de proxy.
+        // Requer `secure: true`. Para desenvolvimento local (http), use 'lax'.
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-    },
-    proxy: true // Força o express-session a confiar no cabeçalho X-Forwarded-Proto.
+    }
+    // A opção 'proxy' é redundante quando 'app.set("trust proxy", 1)' é usado,
+    // pois o express-session usará a configuração do Express por padrão.
 }));
+
 
 // --- Middlewares de Autenticação ---
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.status(401).json({ message: 'Não autorizado. Faça login para continuar.' });
@@ -92,7 +93,6 @@ const isOwner = (req, res, next) => (req.session.user && req.session.user.role =
 const isPropertyOwner = async (req, res, next) => {
     try {
         const { id } = req.params; // id do imóvel
-        // Busca o imóvel diretamente no banco de dados para melhor performance
         const property = await dataManager.findPropertyById(id);
 
         if (!property) {
@@ -102,7 +102,7 @@ const isPropertyOwner = async (req, res, next) => {
         if (property.ownerId !== req.session.user.id && req.session.user.role !== 'admin') {
             return res.status(403).json({ message: 'Você não tem permissão para alterar este imóvel.' });
         }
-        req.property = property; // Passa o imóvel para o próximo handler
+        req.property = property;
         next();
     } catch (error) {
         console.error("Erro em isPropertyOwner:", error);
@@ -111,13 +111,11 @@ const isPropertyOwner = async (req, res, next) => {
 };
 
 // --- Middleware de Depuração ---
-// Este middleware nos ajudará a ver o que está acontecendo com a sessão em cada requisição.
 const debugSession = (req, res, next) => {
   const cookies = req.headers.cookie || 'Nenhum cookie enviado';
   console.log(`[DEBUG] Rota: ${req.method} ${req.originalUrl}`);
   console.log(`[DEBUG] Cookies recebidos: ${cookies}`);
   
-  // Usamos uma cópia para evitar problemas com referências circulares no log
   const sessionCopy = req.session ? JSON.parse(JSON.stringify(req.session)) : null;
   console.log('[DEBUG] req.session ANTES da rota:', sessionCopy);
 
@@ -129,7 +127,7 @@ const debugSession = (req, res, next) => {
 };
 
 // --- Rotas de Autenticação ---
-app.use('/api', debugSession); // Aplicar o middleware de debug em todas as rotas /api/*
+app.use('/api', debugSession);
 
 app.post('/api/auth/register', async (req, res) => {
     try {
@@ -169,8 +167,6 @@ app.post('/api/auth/login', async (req, res) => {
         const userSessionData = { id: user.id, username: user.username, role: user.role };
         req.session.user = userSessionData;
 
-        // Salva a sessão explicitamente para garantir que o cookie seja enviado antes da resposta.
-        // Isso adiciona uma camada de robustez em ambientes de produção.
         req.session.save(err => {
             if (err) {
                 console.error("Erro ao salvar a sessão durante o login:", err);
@@ -203,11 +199,12 @@ app.get('/api/auth/session', (req, res) => {
     res.status(404).json({ message: 'Nenhuma sessão ativa.' });
 });
 
-// --- Rotas dos Imóveis ---
+// --- Rotas dos Imóveis (sem alterações) ---
+// ... (seu código de rotas de imóveis continua aqui) ...
 app.get('/api/imoveis', async (req, res) => {
     try {
         const properties = await dataManager.readImoveis();
-        res.json(properties || []); // Agora 'properties' é um array diretamente
+        res.json(properties || []);
     } catch (error) {
         console.error("Erro ao carregar imóveis:", error);
         res.status(500).json({ message: 'Erro ao carregar imóveis.' });
@@ -250,9 +247,8 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
 app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imagens', 5), async (req, res) => {
     try {
         const { id } = req.params;
-        const existingProperty = req.property; // Obtido do middleware isPropertyOwner
+        const existingProperty = req.property;
 
-        // Construir o objeto com os dados atualizados
         const updatedData = {
             nome: req.body.nome || existingProperty.nome,
             descricao: req.body.descricao || existingProperty.descricao,
@@ -264,7 +260,7 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
             rentalPrice: req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : existingProperty.rentalPrice,
             rentalPeriod: req.body.rentalPeriod || existingProperty.rentalPeriod,
             images: existingProperty.images || [],
-            ownerId: req.session.user.id // Passa o ownerId para a verificação de segurança na função
+            ownerId: req.session.user.id
         };
 
         if (req.files && req.files.length > 0) {
@@ -290,16 +286,14 @@ app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (r
             return res.status(400).json({ message: 'Caminho da imagem é obrigatório.' });
         }
 
-        const propertyToUpdate = { ...req.property }; // Copia o imóvel do middleware
+        const propertyToUpdate = { ...req.property };
         propertyToUpdate.images = (propertyToUpdate.images || []).filter(img => img !== imagePath);
-        propertyToUpdate.ownerId = req.session.user.id; // Adiciona para a função de update
+        propertyToUpdate.ownerId = req.session.user.id;
 
-        // Deleta o arquivo físico
         fs.unlink(path.join(__dirname, imagePath), (err) => {
             if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
         });
 
-        // Atualiza o registro no banco de dados
         const updatedProperty = await dataManager.updateProperty(id, propertyToUpdate);
 
         res.json({ message: 'Imagem removida com sucesso!', property: updatedProperty });
@@ -312,9 +306,8 @@ app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (r
 app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res) => {
     try {
         const { id } = req.params;
-        const propertyToDelete = req.property; // Obtido do middleware
+        const propertyToDelete = req.property;
 
-        // Deleta as imagens associadas do sistema de arquivos
         if (propertyToDelete.images && propertyToDelete.images.length > 0) {
             propertyToDelete.images.forEach(imagePath => {
                 fs.unlink(path.join(__dirname, imagePath), (err) => {
@@ -336,9 +329,9 @@ app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res
     }
 });
 
-// --- Rotas de Gerenciamento de Usuário ---
 
-// Rota para excluir usuário
+// --- Rotas de Gerenciamento de Usuário (sem alterações) ---
+// ... (seu código de rotas de usuário continua aqui) ...
 app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
     try {
         const { id } = req.params;
@@ -352,11 +345,9 @@ app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
             return res.status(404).json({ message: 'Usuário não encontrado.' });
         }
 
-        // Se o usuário for um proprietário, encontre e remova seus imóveis e imagens
         if (userToDelete.role === 'owner') {
             const properties = await dataManager.findPropertiesByOwner(id);
 
-            // Deleta as imagens dos imóveis removidos
             properties.forEach(property => {
                 if (property.images && property.images.length > 0) {
                     property.images.forEach(imagePath => {
@@ -367,21 +358,17 @@ app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
                 }
             });
             
-            // Deleta os imóveis do banco de dados
             await dataManager.deletePropertiesByOwner(id);
         }
 
-        // Remove o usuário do banco de dados
         const deletedCount = await dataManager.deleteUser(id);
         if (deletedCount === 0) {
             return res.status(404).json({ message: 'Usuário não encontrado para exclusão.' });
         }
 
-        // Destrói a sessão do usuário para fazer o logout
         req.session.destroy(err => {
             if (err) {
                 console.error("Erro ao destruir sessão após exclusão de usuário:", err);
-                // Mesmo com erro, a resposta de sucesso é enviada pois o usuário foi excluído.
             }
             res.clearCookie('connect.sid');
             res.json({ message: 'Sua conta e todos os seus dados foram excluídos com sucesso.' });
@@ -407,24 +394,20 @@ app.put('/api/users/:id/name', isAuthenticated, async (req, res) => {
 
         const trimmedNewName = newName.trim();
 
-        // Atualiza o nome do usuário no banco
         const updatedUser = await dataManager.updateUsername(id, trimmedNewName);
         if (!updatedUser) {
             return res.status(404).json({ message: 'Usuário não encontrado.' });
         }
 
-        // Atualiza o nome do proprietário em todos os seus imóveis para manter a consistência
         if (req.session.user.role === 'owner') {
             await dataManager.updatePropertiesUsername(id, trimmedNewName);
         }
 
-        // Atualiza o nome na sessão ativa
         req.session.user.username = trimmedNewName;
 
         res.json({ message: 'Nome atualizado com sucesso.', newName: trimmedNewName });
     } catch (error) {
-        // Verifica se o erro é de violação de chave única (username já existe)
-        if (error.code === '23505') { // Código de erro do PostgreSQL para unique_violation
+        if (error.code === '23505') {
             return res.status(409).json({ message: 'Este nome de usuário já está em uso.' });
         }
         console.error('Erro ao atualizar nome do usuário:', error);
@@ -471,20 +454,14 @@ app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
 // --- Função para iniciar o servidor de forma segura ---
 async function startServer() {
     try {
-        // 1. Garante que as tabelas do banco de dados existam.
         await dataManager.initDB();
-        console.log('Banco de dados inicializado com sucesso.');
-
-        // 2. Inicia o servidor.
         app.listen(PORT, () => {
             console.log(`Servidor rodando na porta ${PORT}`);
         });
-
     } catch (err) {
         console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
-        process.exit(1); // Encerra o processo se a inicialização falhar.
+        process.exit(1);
     }
 }
 
-// Inicia a aplicação
 startServer();
