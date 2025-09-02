@@ -38,12 +38,21 @@ const upload = multer({ storage: storage });
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Para parsear application/x-www-form-urlencoded
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Servir imagens da pasta uploads
+
+// --- Servir Arquivos Estáticos ---
+// A melhor prática é servir arquivos de uma pasta 'public' dedicada.
+// Isso evita a exposição acidental de arquivos do servidor como server.js.
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Verifica se a SESSION_SECRET foi definida no .env
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'seu_segredo_super_secreto_aqui_com_pelo_menos_32_caracteres') {
     console.error('ERRO FATAL: A variável de ambiente SESSION_SECRET não está definida ou está usando o valor padrão.');
     console.error('Por favor, crie um arquivo .env, gere uma chave segura e adicione em SESSION_SECRET.');
+    process.exit(1);
+}
+if (!process.env.DATABASE_URL) {
+    console.error('ERRO FATAL: A variável de ambiente DATABASE_URL não está definida.');
     process.exit(1);
 }
 
@@ -163,6 +172,7 @@ app.post('/api/auth/login', async (req, res) => {
                 console.error("Erro ao salvar a sessão durante o login:", err);
                 return res.status(500).json({ message: 'Ocorreu um erro interno durante o login.' });
             }
+            console.log(`[DEBUG] Sessão para o usuário ${user.username} salva com sucesso. SID: ${req.sessionID}`);
             res.json({ message: 'Login bem-sucedido!', user: userSessionData });
         });
     } catch (error) {
@@ -453,10 +463,6 @@ app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
     }
 });
 
-// Servir arquivos estáticos (HTML, CSS, JS do cliente) - DEVE VIR DEPOIS DAS ROTAS DA API
-// ATENÇÃO: Servir o diretório raiz é um risco de segurança, pois expõe arquivos como server.js.
-// A melhor prática é mover index.html, script.js e style.css para uma pasta 'public' e usar app.use(express.static('public'))
-app.use(express.static(path.join(__dirname)));
 
 // --- Função para iniciar o servidor de forma segura ---
 async function startServer() {
