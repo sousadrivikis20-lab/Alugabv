@@ -549,16 +549,4 @@ async function startServer() {
 }
 
 startServer();
-async function startServer() {
-    try {
-        await dataManager.initDB();
-        app.listen(PORT, () => {
-            console.log(`Servidor rodando na porta ${PORT}`);
-        });
-    } catch (err) {
-        console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
-        process.exit(1);
-    }
-}
 
-startServer();
