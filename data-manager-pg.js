@@ -124,9 +124,9 @@ async function addProperty(property) {
   }
 }
 
-async function updateProperty(id, propertyData) {
+async function updateProperty(id, propertyData, isModerator = false) {
   try {
-    const result = await pool.query(`
+    let query = `
       UPDATE properties SET
         nome = $1,
         descricao = $2,
@@ -138,9 +138,9 @@ async function updateProperty(id, propertyData) {
         rental_price = $8,
         rental_period = $9,
         images = $10
-      WHERE id = $11 AND owner_id = $12
-      RETURNING *;
-    `, [
+      WHERE id = $11
+    `;
+    let params = [
       propertyData.nome,
       propertyData.descricao,
       propertyData.contato,
@@ -151,10 +151,18 @@ async function updateProperty(id, propertyData) {
       propertyData.rentalPrice,
       propertyData.rentalPeriod,
       propertyData.images,
-      id,
-      propertyData.ownerId // Garante que o usuário só edite seus próprios imóveis
-    ]);
-    
+      id
+    ];
+
+    if (!isModerator) {
+      query += ' AND owner_id = $12';
+      params.push(propertyData.ownerId);
+    }
+
+    query += ' RETURNING *;';
+
+    const result = await pool.query(query, params);
+
     if (result.rowCount === 0) {
       console.warn(`Tentativa de atualização do imóvel ${id} falhou. Imóvel não encontrado ou permissão negada.`);
       return null;

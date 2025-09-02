@@ -327,7 +327,7 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
             }
         }
 
-        const updatedProperty = await dataManager.updateProperty(id, updatedData);
+        const updatedProperty = await dataManager.updateProperty(id, updatedData, isModerator);
 
         res.json({ message: 'Imóvel atualizado com sucesso!', property: updatedProperty });
     } catch (error) {
@@ -389,7 +389,8 @@ app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res
         }
 
         // Remove o imóvel do banco de dados
-        const deletedCount = await dataManager.deleteProperty(id);
+        // Corrigido para passar ownerId e isModerator
+        const deletedCount = await dataManager.deleteProperty(id, propertyToDelete.ownerId, isModerator);
 
         if (deletedCount > 0) {
             res.json({ message: 'Imóvel removido com sucesso.' });
