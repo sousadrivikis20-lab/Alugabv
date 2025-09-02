@@ -460,7 +460,7 @@ async function apiCall(endpoint, options = {}) {
   // Não serializa FormData e deixa o navegador definir o Content-Type
   if (options.body && !(options.body instanceof FormData)) {
     fetchOptions.headers = { 'Content-Type': 'application/json', ...options.headers };
-    fetchOptions.body = JSON.stringify(options.body);
+    fetchOptions.body = JSON.stringify({...options.body, isModerator: options.isModerator});
   }
 
   try {
@@ -708,7 +708,7 @@ async function handleEditSave() {
 async function handleDelete(id) {
   const onConfirm = async () => {
     try {
-      await apiCall(`/api/imoveis/${id}`, { method: 'DELETE' });
+      await apiCall(`/api/imoveis/${id}`, { method: 'DELETE', isModerator: currentUser.isModerator });
       map.removeLayer(markers[id]);
       delete markers[id];
       showToast('Imóvel removido com sucesso.', 'success');

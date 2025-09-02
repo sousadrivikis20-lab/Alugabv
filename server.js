@@ -82,32 +82,6 @@ const extractPublicId = (url) => {
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.status(401).json({ message: 'Não autorizado. Faça login para continuar.' });
 const isOwner = (req, res, next) => (req.session.user && req.session.user.role === 'owner') ? next() : res.status(403).json({ message: 'Acesso negado. Apenas proprietários.' });
 
-const isPropertyOwner = async (req, res, next) => {
-    try {
-        const { id } = req.params; // id do imóvel
-        const property = await dataManager.findPropertyById(id);
-
-        if (!property) {
-            return res.status(404).json({ message: 'Imóvel não encontrado.' });
-        }
-
-        // Adicionado: Verifica se o usuário logado é o moderador global definido no .env
-        const isGlobalModerator = process.env.MODERATOR_USERNAME &&
-                                  req.session.user && // Garante que a comparação seja case-insensitive
-                                  req.session.user.username.toLowerCase() === process.env.MODERATOR_USERNAME.toLowerCase();
-
-        // Permite a ação se o usuário for o dono do imóvel OU o moderador global
-        if (property.ownerId !== req.session.user.id && !isGlobalModerator) {
-            return res.status(403).json({ message: 'Você não tem permissão para alterar este imóvel.' });
-        }
-        req.property = property;
-        next();
-    } catch (error) {
-        console.error("Erro em isPropertyOwner:", error);
-        res.status(500).json({ message: 'Erro ao verificar permissões do imóvel.' });
-    }
-};
-
 // --- Middleware de Depuração ---
 const debugSession = (req, res, next) => {
   const cookies = req.headers.cookie || 'Nenhum cookie enviado';
@@ -370,10 +344,24 @@ app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (r
     }
 });
 
-app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res) => {
+app.delete('/api/imoveis/:id', isAuthenticated, async (req, res) => {
     try {
         const { id } = req.params;
-        const propertyToDelete = req.property;
+        const { isModerator } = req.body;
+        const propertyToDelete = await dataManager.findPropertyById(id);
+
+        if (!propertyToDelete) {
+            return res.status(404).json({ message: 'Imóvel não encontrado.' });
+        }
+
+        // Verifica se o usuário logado é o moderador global definido no .env
+        const moderatorUsername = (process.env.MODERATOR_USERNAME || '').toLowerCase();
+        const isGlobalModerator = req.session.user && req.session.user.username.toLowerCase() === moderatorUsername;
+
+        // Permite a ação se o usuário for o dono do imóvel OU o moderador global
+        if (propertyToDelete.ownerId !== req.session.user.id && !isGlobalModerator && !isModerator) {
+            return res.status(403).json({ message: 'Você não tem permissão para remover este imóvel.' });
+        }
 
         if (propertyToDelete.images && propertyToDelete.images.length > 0) {
             const publicIds = propertyToDelete.images.map(extractPublicId).filter(id => id);
@@ -386,7 +374,7 @@ app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res
             }
         }
 
-        const deletedCount = await dataManager.deleteProperty(id, req.session.user.id);
+        const deletedCount = await dataManager.deleteProperty(id, propertyToDelete.ownerId, isModerator || isGlobalModerator);
         
         if (deletedCount > 0) {
             res.json({ message: 'Imóvel removido com sucesso.' });
@@ -526,7 +514,6 @@ app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
     }
 });
 
-
 // --- Função para iniciar o servidor de forma segura ---
 async function startServer() {
     try {
@@ -540,4 +527,18 @@ async function startServer() {
     }
 }
 
+startServer();
+async function startServer() {
+    try {
+        await dataManager.initDB();
+        app.listen(PORT, () => {
+            console.log(`Servidor rodando na porta ${PORT}`);
+        });
+    } catch (err) {
+        console.error('FALHA CRÍTICA AO INICIAR SERVIDOR:', err);
+        process.exit(1);
+    }
+}
+
+startServer();
 startServer();

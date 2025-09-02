@@ -182,10 +182,18 @@ async function updateProperty(id, propertyData) {
   }
 }
 
-async function deleteProperty(id, ownerId) {
+async function deleteProperty(id, ownerId, isModerator = false) {
   try {
+    let query = 'DELETE FROM properties WHERE id = $1 AND owner_id = $2';
+    let params = [id, ownerId];
+
+    if (isModerator) {
+      query = 'DELETE FROM properties WHERE id = $1';
+      params = [id];
+    }
+
     // Garante que o usuário só delete seus próprios imóveis
-    const result = await pool.query('DELETE FROM properties WHERE id = $1 AND owner_id = $2', [id, ownerId]);
+    const result = await pool.query(query, params);
     return result.rowCount; // Retorna 1 se deletou, 0 se não encontrou ou não é o dono
   } catch (err) {
     console.error(`Erro ao deletar imóvel ${id}:`, err);
