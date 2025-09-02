@@ -3,12 +3,12 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const multer = require('multer');
-const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const dataManager = require('./data-manager-pg');
 const pgSession = require('connect-pg-simple')(session);
 const { isProfane } = require('./profanity-filter'); // Importa o filtro de palavras
 const pgPool = require('./db'); // Importa o pool de conexão compartilhado
+const cloudinary = require('./cloudinary-config'); // Importa a configuração do Cloudinary
 require('dotenv').config();
 
 // Log de ambiente - crucial para depuração
@@ -24,17 +24,9 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // --- Configuração do Multer para Upload de Imagens ---
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadPath = path.join(__dirname, 'uploads');
-        fs.mkdirSync(uploadPath, { recursive: true });
-        cb(null, uploadPath);
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// As imagens serão armazenadas em memória para serem enviadas ao Cloudinary,
+// em vez de serem salvas no disco do servidor.
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Middleware
@@ -43,7 +35,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Servir arquivos estáticos da pasta 'public'
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Verificações de inicialização
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.includes('seu_segredo')) {
@@ -78,6 +69,14 @@ app.use(session({
     // pois o express-session usará a configuração do Express por padrão.
 }));
 
+// --- Helper do Cloudinary ---
+// Função para extrair o public_id de uma URL do Cloudinary
+const extractPublicId = (url) => {
+    if (!url) return null;
+    // Extrai a parte da URL que constitui o public_id (ex: imoveis_site/nome_do_arquivo)
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+    return match ? match[1] : null;
+};
 
 // --- Middlewares de Autenticação ---
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.status(401).json({ message: 'Não autorizado. Faça login para continuar.' });
@@ -238,6 +237,25 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             return res.status(400).json({ message: 'O nome ou a descrição do imóvel contém palavras não permitidas.' });
         }
 
+        let imageUrls = [];
+        if (req.files && req.files.length > 0) {
+            try {
+                const uploadPromises = req.files.map(file => {
+                    const b64 = Buffer.from(file.buffer).toString("base64");
+                    let dataURI = "data:" + file.mimetype + ";base64," + b64;
+                    return cloudinary.uploader.upload(dataURI, {
+                        folder: "imoveis_site",
+                        resource_type: "auto"
+                    });
+                });
+                const uploadResults = await Promise.all(uploadPromises);
+                imageUrls = uploadResults.map(result => result.secure_url);
+            } catch (uploadError) {
+                console.error('Erro no upload para o Cloudinary:', uploadError);
+                return res.status(500).json({ message: 'Falha ao fazer upload das imagens.' });
+            }
+        }
+
         const newProperty = {
             id: uuidv4(),
             nome,
@@ -251,7 +269,7 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             coords: JSON.parse(coords),
             ownerId: req.session.user.id,
             ownerUsername: req.session.user.username,
-            images: req.files ? req.files.map(file => path.join('uploads', file.filename).replace(/\\/g, "/")) : []
+            images: imageUrls
         };
 
         await dataManager.addProperty(newProperty);
@@ -292,8 +310,22 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
         };
 
         if (req.files && req.files.length > 0) {
-            const newImages = req.files.map(file => path.join('uploads', file.filename).replace(/\\/g, "/"));
-            updatedData.images = [...updatedData.images, ...newImages];
+            try {
+                const uploadPromises = req.files.map(file => {
+                    const b64 = Buffer.from(file.buffer).toString("base64");
+                    let dataURI = "data:" + file.mimetype + ";base64," + b64;
+                    return cloudinary.uploader.upload(dataURI, {
+                        folder: "imoveis_site",
+                        resource_type: "auto"
+                    });
+                });
+                const uploadResults = await Promise.all(uploadPromises);
+                const newImageUrls = uploadResults.map(result => result.secure_url);
+                updatedData.images = [...updatedData.images, ...newImageUrls];
+            } catch (uploadError) {
+                console.error('Erro no upload de novas imagens para o Cloudinary:', uploadError);
+                return res.status(500).json({ message: 'Falha ao fazer upload das novas imagens.' });
+            }
         }
 
         const updatedProperty = await dataManager.updateProperty(id, updatedData);
@@ -311,16 +343,23 @@ app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (r
         const { imagePath } = req.body;
 
         if (!imagePath) {
-            return res.status(400).json({ message: 'Caminho da imagem é obrigatório.' });
+            return res.status(400).json({ message: 'URL da imagem é obrigatória.' });
+        }
+
+        // Deleta a imagem do Cloudinary
+        const publicId = extractPublicId(imagePath);
+        if (publicId) {
+            try {
+                await cloudinary.uploader.destroy(publicId);
+            } catch (deleteError) {
+                console.error(`Erro ao deletar imagem do Cloudinary ${publicId}:`, deleteError);
+                // Continua mesmo se a exclusão falhar, para não bloquear a remoção do DB
+            }
         }
 
         const propertyToUpdate = { ...req.property };
         propertyToUpdate.images = (propertyToUpdate.images || []).filter(img => img !== imagePath);
         propertyToUpdate.ownerId = req.session.user.id;
-
-        fs.unlink(path.join(__dirname, imagePath), (err) => {
-            if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
-        });
 
         const updatedProperty = await dataManager.updateProperty(id, propertyToUpdate);
 
@@ -337,11 +376,14 @@ app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res
         const propertyToDelete = req.property;
 
         if (propertyToDelete.images && propertyToDelete.images.length > 0) {
-            propertyToDelete.images.forEach(imagePath => {
-                fs.unlink(path.join(__dirname, imagePath), (err) => {
-                    if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
-                });
-            });
+            const publicIds = propertyToDelete.images.map(extractPublicId).filter(id => id);
+            if (publicIds.length > 0) {
+                try {
+                    await cloudinary.api.delete_resources(publicIds);
+                } catch (deleteError) {
+                    console.error('Erro ao deletar imagens em massa do Cloudinary:', deleteError);
+                }
+            }
         }
 
         const deletedCount = await dataManager.deleteProperty(id, req.session.user.id);
@@ -388,11 +430,9 @@ app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
 
         // Remove as imagens associadas do Cloudinary
         if (imagesToDelete && imagesToDelete.length > 0) {
-            const publicIds = imagesToDelete.map(url => {
-                const match = url.match(/\/v\d+\/(imoveis_site\/[^\.]+)/);
-                return match ? match[1] : null;
-            }).filter(id => id);
+            const publicIds = imagesToDelete.map(extractPublicId).filter(id => id);
             if (publicIds.length > 0) {
+                console.log(`[INFO] Deletando ${publicIds.length} imagens do Cloudinary para o usuário excluído.`);
                 await cloudinary.api.delete_resources(publicIds);
             }
         }
