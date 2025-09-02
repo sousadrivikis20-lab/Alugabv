@@ -539,55 +539,44 @@ form#form-imovel {
 /* --- Botões de Edição no Formulário --- */
 #edit-buttons {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 10px;
 }
 
-#save-edit-btn,
-#cancel-edit-btn, /* Adicionado para garantir mesma largura */
-.secondary-btn,
-.danger-btn,
-.tertiary-btn {
-  color: #ffffff;
-  border: none;
-  padding: 12px;
-  border-radius: 5px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative; /* Para o spinner */
-  flex: 1 1 0; /* Faz ambos crescerem igualmente */
-  min-width: 0; /* Permite encolher em telas pequenas */
+#edit-buttons button,
+#edit-buttons .tertiary-btn,
+#edit-buttons .secondary-btn {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 14px 0;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
-#save-edit-btn { background-color: var(--accent-green); }
-#cancel-edit-btn { background-color: var(--text-muted); color: #fff; }
+#save-edit-btn { background-color: var(--accent-green); color: #fff; border: none; }
+#save-edit-btn:hover { background-color: var(--accent-green-hover); }
+
+#cancel-edit-btn { background-color: var(--text-muted); color: #fff; border: none; }
 #cancel-edit-btn:hover { background-color: #555; }
 
-.secondary-btn { background-color: var(--text-muted); }
-.danger-btn { background-color: #c62828; }
-.danger-btn:hover { background-color: #e53935; }
-.tertiary-btn {
+#change-location-btn {
   background-color: transparent;
-  border: 1px solid #2980b9;
+  border: 1.5px solid #2980b9;
   color: #2980b9;
-  flex-grow: 1;
 }
-
-.tertiary-btn:hover {
+#change-location-btn:hover {
   background-color: #2980b9;
-  color: #ffffff;
-}
-
-.remove-image-btn:hover {
-    background-color: #e53935;
-    transform: scale(1.1);
+  color: #fff;
 }
 
 /* --- Alinhamento dos ícones nos popups dos imóveis --- */
@@ -595,10 +584,10 @@ form#form-imovel {
 .leaflet-popup-content .property-type-info svg,
 .leaflet-popup-content .popup-actions button svg {
   vertical-align: middle !important;
-  margin-bottom: 0 !important;
+  margin-bottom: -2px !important; /* Ajuste fino para alinhar com o texto */
   margin-right: 6px;
   position: relative;
-  top: 0.5px; /* Pequeno ajuste para alinhar melhor */
+  top: 0;
 }
 
 /* Garante alinhamento dos botões de ação no popup */
