@@ -91,7 +91,11 @@ const isPropertyOwner = async (req, res, next) => {
             return res.status(404).json({ message: 'Imóvel não encontrado.' });
         }
 
-        if (property.ownerId !== req.session.user.id) {
+        const isOwner = property.ownerId === req.session.user.id;
+        const isModerator = req.session.user.isModerator === true;
+
+        // Permite a ação se o usuário for o dono OU um moderador
+        if (!isOwner && !isModerator) {
             return res.status(403).json({ message: 'Você não tem permissão para editar este imóvel.' });
         }
 
@@ -360,102 +364,42 @@ app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (r
 
         res.json({ message: 'Imagem removida com sucesso!', property: updatedProperty });
     } catch (error) {
-        console.error('Erro ao remover imagem do imóvel:', error);
+        console.error('Erro ao remover imagem:', error);
         res.status(500).json({ message: 'Ocorreu um erro interno ao remover a imagem.' });
     }
 });
-
-app.delete('/api/imoveis/:id', isAuthenticated, async (req, res) => {
+app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res) => {
     try {
         const { id } = req.params;
-        const { isModerator } = req.body;
-        const propertyToDelete = await dataManager.findPropertyById(id);
-
-        if (!propertyToDelete) {
-            return res.status(404).json({ message: 'Imóvel não encontrado.' });
-        }
-
-        // Verifica se o usuário logado é o moderador global definido no .env
-        const moderatorUsername = (process.env.MODERATOR_USERNAME || '').toLowerCase();
-        const isGlobalModerator = req.session.user && req.session.user.username.toLowerCase() === moderatorUsername;
-
-        // Permite a ação se o usuário for o dono do imóvel OU o moderador global
-        if (propertyToDelete.ownerId !== req.session.user.id && !isGlobalModerator && !isModerator) {
-            return res.status(403).json({ message: 'Você não tem permissão para remover este imóvel.' });
-        }
-
+        // O middleware isPropertyOwner já validou a permissão e carregou o imóvel em req.property
+        const propertyToDelete = req.property;
+        const isModerator = req.session.user.isModerator === true;
         if (propertyToDelete.images && propertyToDelete.images.length > 0) {
             const publicIds = propertyToDelete.images.map(extractPublicId).filter(id => id);
             if (publicIds.length > 0) {
                 try {
+                    // Deleta todos os recursos (imagens) de uma vez
                     await cloudinary.api.delete_resources(publicIds);
                 } catch (deleteError) {
                     console.error('Erro ao deletar imagens em massa do Cloudinary:', deleteError);
+                    // Não interrompe o fluxo, a exclusão do imóvel do DB é mais importante.
+                    // Pode-se adicionar um log mais robusto aqui se necessário.
                 }
             }
         }
 
-        const deletedCount = await dataManager.deleteProperty(id, propertyToDelete.ownerId, isModerator || isGlobalModerator);
-        
+        // Remove o imóvel do banco de dados
+        const deletedCount = await dataManager.deleteProperty(id);
+
         if (deletedCount > 0) {
             res.json({ message: 'Imóvel removido com sucesso.' });
         } else {
-            res.status(404).json({ message: 'Imóvel não encontrado ou você não tem permissão para remover.' });
+            // Isso pode acontecer se o imóvel foi deletado por outra requisição entre a verificação e a exclusão.
+            res.status(404).json({ message: 'Imóvel não encontrado para remoção.' });
         }
     } catch (error) {
         console.error('Erro ao remover imóvel:', error);
         res.status(500).json({ message: 'Ocorreu um erro interno ao remover o imóvel.' });
-    }
-});
-
-
-// --- Rotas de Gerenciamento de Usuário (sem alterações) ---
-// ... (seu código de rotas de usuário continua aqui) ...
-app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        if (req.session.user.id !== id) {
-            return res.status(403).json({ message: 'Você não tem permissão para excluir esta conta.' });
-        }
-
-        const userToDelete = await dataManager.findUserById(id);
-        if (!userToDelete) {
-            return res.status(404).json({ message: 'Usuário não encontrado.' });
-        }
-
-        // Adicionado: Proteção para não deletar o moderador
-        const moderatorUsername = process.env.MODERATOR_USERNAME;
-        if (moderatorUsername && userToDelete.username.toLowerCase() === moderatorUsername.toLowerCase()) {
-            return res.status(403).json({ message: 'A conta do moderador não pode ser excluída.' });
-        }
-
-        // Deleta o usuário e busca a lista de suas imagens para remoção do Cloudinary
-        const { deletedUserCount, imagesToDelete } = await dataManager.deleteUserAndContent(id);
-
-        if (deletedUserCount === 0) {
-            return res.status(404).json({ message: 'Usuário não encontrado para exclusão.' });
-        }
-
-        // Remove as imagens associadas do Cloudinary
-        if (imagesToDelete && imagesToDelete.length > 0) {
-            const publicIds = imagesToDelete.map(extractPublicId).filter(id => id);
-            if (publicIds.length > 0) {
-                console.log(`[INFO] Deletando ${publicIds.length} imagens do Cloudinary para o usuário excluído.`);
-                await cloudinary.api.delete_resources(publicIds);
-            }
-        }
-
-        req.session.destroy(err => {
-            if (err) {
-                console.error("Erro ao destruir sessão após exclusão de usuário:", err);
-            }
-            res.clearCookie('connect.sid');
-            res.json({ message: 'Sua conta e todos os seus dados foram excluídos com sucesso.' });
-        });
-    } catch (error) {
-        console.error('Erro ao excluir usuário:', error);
-        res.status(500).json({ message: 'Erro interno ao excluir usuário.' });
     }
 });
 
@@ -549,4 +493,3 @@ async function startServer() {
 }
 
 startServer();
-
