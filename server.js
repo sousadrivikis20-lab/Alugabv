@@ -7,6 +7,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const dataManager = require('./data-manager-pg');
 const pgSession = require('connect-pg-simple')(session);
+const { isProfane } = require('./profanity-filter'); // Importa o filtro de palavras
 const pgPool = require('./db'); // Importa o pool de conexão compartilhado
 require('dotenv').config();
 
@@ -91,7 +92,13 @@ const isPropertyOwner = async (req, res, next) => {
             return res.status(404).json({ message: 'Imóvel não encontrado.' });
         }
 
-        if (property.ownerId !== req.session.user.id && req.session.user.role !== 'admin') {
+        // Adicionado: Verifica se o usuário logado é o moderador global definido no .env
+        const isGlobalModerator = process.env.MODERATOR_USERNAME &&
+                                  req.session.user &&
+                                  req.session.user.username === process.env.MODERATOR_USERNAME;
+
+        // Permite a ação se o usuário for o dono do imóvel OU o moderador global
+        if (property.ownerId !== req.session.user.id && !isGlobalModerator) {
             return res.status(403).json({ message: 'Você não tem permissão para alterar este imóvel.' });
         }
         req.property = property;
@@ -128,9 +135,14 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
 
+        // Adiciona verificação de palavras proibidas no nome de usuário
+        if (isProfane(username)) {
+            return res.status(400).json({ message: 'O nome de usuário contém palavras não permitidas.' });
+        }
+
         const existingUser = await dataManager.findUserByUsername(username);
         if (existingUser) {
-            return res.status(409).json({ message: 'Usuário já existe.' });
+            return res.status(409).json({ message: 'Este nome de usuário já está em uso. Tente adicionar um sobrenome ou um apelido para diferenciá-lo.' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -211,6 +223,11 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
 
+        // Adiciona verificação de palavras proibidas
+        if (isProfane(nome) || isProfane(propertyDescricao)) {
+            return res.status(400).json({ message: 'O nome ou a descrição do imóvel contém palavras não permitidas.' });
+        }
+
         const newProperty = {
             id: uuidv4(),
             nome,
@@ -240,10 +257,19 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
     try {
         const { id } = req.params;
         const existingProperty = req.property;
+        const newDescription = req.body.descricao !== undefined ? req.body.descricao : req.body.description;
+
+        // Adiciona verificação de palavras proibidas nos campos que podem ser atualizados
+        if (req.body.nome && isProfane(req.body.nome)) {
+            return res.status(400).json({ message: 'O nome do imóvel contém palavras não permitidas.' });
+        }
+        if (newDescription && isProfane(newDescription)) {
+            return res.status(400).json({ message: 'A descrição do imóvel contém palavras não permitidas.' });
+        }
 
         const updatedData = {
             nome: req.body.nome || existingProperty.nome,
-            descricao: req.body.descricao || existingProperty.descricao,
+            descricao: newDescription || existingProperty.descricao,
             contato: req.body.contato || existingProperty.contato,
             transactionType: req.body.transactionType || existingProperty.transactionType,
             propertyType: req.body.propertyType || existingProperty.propertyType,
@@ -337,6 +363,12 @@ app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
             return res.status(404).json({ message: 'Usuário não encontrado.' });
         }
 
+        // Adicionado: Proteção para não deletar o moderador
+        const moderatorUsername = process.env.MODERATOR_USERNAME;
+        if (moderatorUsername && userToDelete.username === moderatorUsername) {
+            return res.status(403).json({ message: 'A conta do moderador não pode ser excluída.' });
+        }
+
         if (userToDelete.role === 'owner') {
             const properties = await dataManager.findPropertiesByOwner(id);
 
@@ -384,6 +416,11 @@ app.put('/api/users/:id/name', isAuthenticated, async (req, res) => {
             return res.status(400).json({ message: 'O novo nome é obrigatório e deve ter pelo menos 3 caracteres.' });
         }
 
+        // Adiciona verificação de palavras proibidas
+        if (isProfane(newName)) {
+            return res.status(400).json({ message: 'O novo nome contém palavras não permitidas.' });
+        }
+
         const trimmedNewName = newName.trim();
 
         const updatedUser = await dataManager.updateUsername(id, trimmedNewName);
@@ -400,7 +437,7 @@ app.put('/api/users/:id/name', isAuthenticated, async (req, res) => {
         res.json({ message: 'Nome atualizado com sucesso.', newName: trimmedNewName });
     } catch (error) {
         if (error.code === '23505') {
-            return res.status(409).json({ message: 'Este nome de usuário já está em uso.' });
+            return res.status(409).json({ message: 'Este nome de usuário já está em uso. Tente adicionar um sobrenome ou um apelido.' });
         }
         console.error('Erro ao atualizar nome do usuário:', error);
         res.status(500).json({ message: 'Erro interno ao atualizar nome.' });
