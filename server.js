@@ -63,12 +63,15 @@ app.use(session({
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true, // Alterado para true para salvar sessões de visitantes
+    saveUninitialized: false, // Mais seguro e eficiente. Não cria sessões para visitantes não logados.
     cookie: { 
-        secure: process.env.NODE_ENV === 'production', // Use cookies seguros em produção (HTTPS)
+        secure: 'auto', // 'auto' é mais robusto para ambientes de proxy como o Render.
         httpOnly: true, 
-        maxAge: 24 * 60 * 60 * 1000 // 1 dia
-    }
+        maxAge: 24 * 60 * 60 * 1000, // 1 dia
+        sameSite: 'lax' // Essencial para segurança e compatibilidade de navegadores.
+    },
+    // Garante que o express-session confie no proxy, complementando o app.set('trust proxy', 1)
+    proxy: true
 }));
 
 // --- Middlewares de Autenticação ---
@@ -134,7 +137,16 @@ app.post('/api/auth/login', async (req, res) => {
 
         const userSessionData = { id: user.id, username: user.username, role: user.role };
         req.session.user = userSessionData;
-        res.json({ message: 'Login bem-sucedido!', user: userSessionData });
+
+        // Salva a sessão explicitamente para garantir que o cookie seja enviado antes da resposta.
+        // Isso adiciona uma camada de robustez em ambientes de produção.
+        req.session.save(err => {
+            if (err) {
+                console.error("Erro ao salvar a sessão durante o login:", err);
+                return res.status(500).json({ message: 'Ocorreu um erro interno durante o login.' });
+            }
+            res.json({ message: 'Login bem-sucedido!', user: userSessionData });
+        });
     } catch (error) {
         console.error("Erro no login:", error);
         res.status(500).json({ message: 'Ocorreu um erro interno durante o login.' });
