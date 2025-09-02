@@ -77,9 +77,9 @@ app.use(session({
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 dia
-        // 'none' é a configuração mais permissiva e robusta para iframes ou cenários complexos de proxy.
-        // Requer `secure: true`. Para desenvolvimento local (http), use 'lax'.
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+        // 'lax' é o padrão moderno e seguro para a maioria das aplicações.
+        // Ele protege contra ataques CSRF, ao mesmo tempo que permite que a sessão funcione corretamente em navegações normais.
+        sameSite: 'lax'
     }
     // A opção 'proxy' é redundante quando 'app.set("trust proxy", 1)' é usado,
     // pois o express-session usará a configuração do Express por padrão.
