@@ -900,12 +900,28 @@ async function handleLogin(event) {
   }
 }
 
+// Função para validar senha forte (mesma regra do modal de senha)
+function validatePasswordStrength(password) {
+  if (!password || password.length < 6) {
+    return 'A senha deve ter pelo menos 6 caracteres.';
+  }
+  return '';
+}
+
 async function handleRegister(event) {
   event.preventDefault();
   const button = event.target.querySelector('button[type="submit"]');
   const username = event.target.elements['register-username'].value;
   const password = event.target.elements['register-password'].value;
   const role = event.target.elements['register-role'].value;
+
+  // Validação de senha forte (igual à troca de senha)
+  const passwordError = validatePasswordStrength(password);
+  if (passwordError) {
+    showToast(passwordError, 'error');
+    return;
+  }
+
   toggleLoading(button, true);
   try {    
     const data = await apiCall('/api/auth/register', {

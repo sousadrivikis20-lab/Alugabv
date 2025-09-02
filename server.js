@@ -482,6 +482,33 @@ app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
     }
 });
 
+app.delete('/api/users/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Só o próprio usuário pode excluir a própria conta
+        if (!req.session.user || req.session.user.id !== id) {
+            return res.status(403).json({ message: 'Você não tem permissão para excluir esta conta.' });
+        }
+
+        // Remove imóveis e usuário (se usar Postgres)
+        if (typeof dataManager.deleteUserAndContent === 'function') {
+            await dataManager.deleteUserAndContent(id);
+        } else {
+            await dataManager.deleteUser(id);
+        }
+
+        // Destroi a sessão do usuário
+        req.session.destroy(() => {
+            res.clearCookie('connect.sid');
+            res.json({ message: 'Conta excluída com sucesso.' });
+        });
+    } catch (error) {
+        console.error('Erro ao excluir conta:', error);
+        res.status(500).json({ message: 'Erro interno ao excluir conta.' });
+    }
+});
+
 // --- Função para iniciar o servidor de forma segura ---
 async function startServer() {
     try {
