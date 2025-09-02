@@ -251,6 +251,83 @@ async function createUser(user) {
   }
 }
 
+async function findUserById(id) {
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    return result.rows[0];
+  } catch (err) {
+    console.error(`Erro ao buscar usuário por ID ${id}:`, err);
+    throw err;
+  }
+}
+
+async function updateUsername(id, newName) {
+    try {
+        const result = await pool.query('UPDATE users SET username = $1 WHERE id = $2 RETURNING username', [newName, id]);
+        if (result.rowCount === 0) return null;
+        return result.rows[0];
+    } catch (err) {
+        console.error(`Erro ao atualizar nome do usuário ${id}:`, err);
+        throw err;
+    }
+}
+
+async function updateUserPassword(id, newPasswordHash) {
+    try {
+        const result = await pool.query('UPDATE users SET password = $1 WHERE id = $2', [newPasswordHash, id]);
+        return result.rowCount;
+    } catch (err) {
+        console.error(`Erro ao atualizar senha do usuário ${id}:`, err);
+        throw err;
+    }
+}
+
+async function deleteUser(id) {
+    try {
+        const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
+        return result.rowCount;
+    } catch (err) {
+        console.error(`Erro ao deletar usuário ${id}:`, err);
+        throw err;
+    }
+}
+
+async function findPropertiesByOwner(ownerId) {
+  try {
+    const result = await pool.query('SELECT id, images FROM properties WHERE owner_id = $1', [ownerId]);
+    return result.rows;
+  } catch (err) {
+    console.error(`Erro ao buscar imóveis do proprietário ${ownerId}:`, err);
+    throw err;
+  }
+}
+
+async function deletePropertiesByOwner(ownerId) {
+    try {
+        // Primeiro, buscamos as propriedades para poder deletar as imagens associadas
+        const propertiesToDelete = await findPropertiesByOwner(ownerId);
+        
+        // Depois, deletamos as propriedades do banco
+        const result = await pool.query('DELETE FROM properties WHERE owner_id = $1', [ownerId]);
+        
+        // Retornamos as propriedades que foram encontradas para que o server.js possa deletar os arquivos
+        return propertiesToDelete;
+    } catch (err) {
+        console.error(`Erro ao deletar imóveis do proprietário ${ownerId}:`, err);
+        throw err;
+    }
+}
+
+async function updatePropertiesUsername(ownerId, newUsername) {
+    try {
+        const result = await pool.query('UPDATE properties SET owner_username = $1 WHERE owner_id = $2', [newUsername, ownerId]);
+        return result.rowCount;
+    } catch (err) {
+        console.error(`Erro ao atualizar nome do proprietário nos imóveis ${ownerId}:`, err);
+        throw err;
+    }
+}
+
 module.exports = {
   initDB,
   findUserByUsername,
@@ -260,4 +337,11 @@ module.exports = {
   updateProperty,
   deleteProperty,
   findPropertyById,
+  findUserById,
+  updateUsername,
+  updateUserPassword,
+  deleteUser,
+  findPropertiesByOwner,
+  deletePropertiesByOwner,
+  updatePropertiesUsername,
 };

@@ -11,6 +11,11 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const app = express();
+
+// Confia no proxy reverso (necessário para o Render e outras plataformas de hospedagem)
+// Isso garante que o cookie seguro (secure: true) funcione corretamente em produção (HTTPS)
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 3000;
 
 // --- Configuração do Multer para Upload de Imagens ---
@@ -288,64 +293,54 @@ app.delete('/api/imoveis/:id', isAuthenticated, isPropertyOwner, async (req, res
 });
 
 // --- Rotas de Gerenciamento de Usuário ---
-// ATENÇÃO: As rotas abaixo estão quebradas. Elas usam lógica antiga de manipulação de arquivos (readUsers, writeUsers, etc.) e precisam ser completamente reescritas para funcionar com o banco de dados.
 
 // Rota para excluir usuário
 app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Validação de segurança: o usuário só pode excluir a própria conta
         if (req.session.user.id !== id) {
             return res.status(403).json({ message: 'Você não tem permissão para excluir esta conta.' });
         }
 
-        // LÓGICA ANTIGA E QUEBRADA - PRECISA SER REFEITA
-        const users = await dataManager.readUsers();
-        const userIndex = users.findIndex(user => user.id === id);
-        if (userIndex === -1) {
+        const userToDelete = await dataManager.findUserById(id);
+        if (!userToDelete) {
             return res.status(404).json({ message: 'Usuário não encontrado.' });
         }
 
-
         // Se o usuário for um proprietário, encontre e remova seus imóveis e imagens
-        if (users[userIndex].role === 'owner') {
-            const propertiesData = await dataManager.readImoveis();
-            const propertiesToKeep = []; // LÓGICA ANTIGA
-            const propertiesToRemove = propertiesData.filter(p => { // Alterado de propertiesData.imoveis para propertiesData
-                if (p.ownerId === id) {
-                    return true;
-                }
-                propertiesToKeep.push(p); // LÓGICA ANTIGA
-                return false;
-            });
+        if (userToDelete.role === 'owner') {
+            const properties = await dataManager.findPropertiesByOwner(id);
 
             // Deleta as imagens dos imóveis removidos
-            propertiesToRemove.forEach(property => {
+            properties.forEach(property => {
                 if (property.images && property.images.length > 0) {
-                    property.images.forEach(imagePath => { // ATENÇÃO: Caminho pode precisar de ajuste
+                    property.images.forEach(imagePath => {
                         fs.unlink(path.join(__dirname, imagePath), (err) => {
                             if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
                         });
                     });
                 }
             });
-
-            // Salva a lista de imóveis atualizada
-            await dataManager.writeImoveis({ imoveis: propertiesToKeep }); // LÓGICA ANTIGA E QUEBRADA
+            
+            // Deleta os imóveis do banco de dados
+            await dataManager.deletePropertiesByOwner(id);
         }
 
-        // Remove o usuário
-        users.splice(userIndex, 1); // LÓGICA ANTIGA
-        await dataManager.writeUsers(users); // LÓGICA ANTIGA E QUEBRADA
+        // Remove o usuário do banco de dados
+        const deletedCount = await dataManager.deleteUser(id);
+        if (deletedCount === 0) {
+            return res.status(404).json({ message: 'Usuário não encontrado para exclusão.' });
+        }
 
         // Destrói a sessão do usuário para fazer o logout
         req.session.destroy(err => {
             if (err) {
                 console.error("Erro ao destruir sessão após exclusão de usuário:", err);
+                // Mesmo com erro, a resposta de sucesso é enviada pois o usuário foi excluído.
             }
             res.clearCookie('connect.sid');
-            res.json({ message: 'Usuário excluído com sucesso.' });
+            res.json({ message: 'Sua conta e todos os seus dados foram excluídos com sucesso.' });
         });
     } catch (error) {
         console.error('Erro ao excluir usuário:', error);
@@ -353,13 +348,11 @@ app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// Rota para atualizar nome do usuário
 app.put('/api/users/:id/name', isAuthenticated, async (req, res) => {
     try {
         const { id } = req.params;
         const { newName } = req.body;
 
-        // Validação de segurança: o usuário só pode alterar o próprio nome
         if (req.session.user.id !== id) {
             return res.status(403).json({ message: 'Você não tem permissão para alterar este nome.' });
         }
@@ -368,49 +361,60 @@ app.put('/api/users/:id/name', isAuthenticated, async (req, res) => {
             return res.status(400).json({ message: 'O novo nome é obrigatório e deve ter pelo menos 3 caracteres.' });
         }
 
-        // LÓGICA ANTIGA E QUEBRADA - PRECISA SER REFEITA
-        const users = await dataManager.readUsers();
-        const user = users.find(user => user.id === id);
-        if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+        const trimmedNewName = newName.trim();
 
-
-        user.username = newName.trim();
-        req.session.user.username = newName.trim(); // Atualiza o nome na sessão ativa
+        // Atualiza o nome do usuário no banco
+        const updatedUser = await dataManager.updateUsername(id, trimmedNewName);
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'Usuário não encontrado.' });
+        }
 
         // Atualiza o nome do proprietário em todos os seus imóveis para manter a consistência
-        const propertiesData = await dataManager.readImoveis();
-        propertiesData.forEach(p => { // Alterado de propertiesData.imoveis para propertiesData
-            if (p.ownerId === id) {
-                p.ownerUsername = newName.trim();
-            }
-        });
+        if (req.session.user.role === 'owner') {
+            await dataManager.updatePropertiesUsername(id, trimmedNewName);
+        }
 
-        await dataManager.writeUsers(users); // LÓGICA ANTIGA E QUEBRADA
-        await dataManager.writeImoveis(propertiesData); // LÓGICA ANTIGA E QUEBRADA
+        // Atualiza o nome na sessão ativa
+        req.session.user.username = trimmedNewName;
 
-        res.json({ message: 'Nome atualizado com sucesso.', newName: user.username });
+        res.json({ message: 'Nome atualizado com sucesso.', newName: trimmedNewName });
     } catch (error) {
+        // Verifica se o erro é de violação de chave única (username já existe)
+        if (error.code === '23505') { // Código de erro do PostgreSQL para unique_violation
+            return res.status(409).json({ message: 'Este nome de usuário já está em uso.' });
+        }
         console.error('Erro ao atualizar nome do usuário:', error);
         res.status(500).json({ message: 'Erro interno ao atualizar nome.' });
     }
 });
 
-// Rota para atualizar senha do usuário
 app.put('/api/users/:id/password', isAuthenticated, async (req, res) => {
     try {
         const { id } = req.params;
         const { currentPassword, newPassword } = req.body;
 
-        if (req.session.user.id !== id) return res.status(403).json({ message: 'Você não tem permissão para alterar esta senha.' });
-        if (!currentPassword || !newPassword) return res.status(400).json({ message: 'A senha atual e a nova senha são obrigatórias.' });
+        if (req.session.user.id !== id) {
+            return res.status(403).json({ message: 'Você não tem permissão para alterar esta senha.' });
+        }
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'A senha atual e a nova senha são obrigatórias.' });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: 'A nova senha deve ter pelo menos 6 caracteres.' });
+        }
 
-        // LÓGICA ANTIGA E QUEBRADA - PRECISA SER REFEITA
-        const users = await dataManager.readUsers();
-        const user = users.find(user => user.id === id);
-        if (!user) return res.status(404).json({ message: 'Usuário não encontrado.' });
+        const user = await dataManager.findUserById(id);
+        if (!user) {
+            return res.status(404).json({ message: 'Usuário não encontrado.' });
+        }
 
-        user.password = await bcrypt.hash(newPassword, 10);
-        await dataManager.writeUsers(users); // LÓGICA ANTIGA E QUEBRADA
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'A senha atual está incorreta.' });
+        }
+
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        await dataManager.updateUserPassword(id, hashedNewPassword);
 
         res.json({ message: 'Senha atualizada com sucesso.' });
     } catch (error) {
