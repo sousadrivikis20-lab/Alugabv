@@ -522,7 +522,7 @@ function handleEditStart(id) {
   descricaoInput.value = property.descricao || '';
   contatoInput.value = property.contato;
   transactionTypeSelect.value = property.transactionType;
-  propertyTypeSelect.value = property.propertyType; // Preenche o novo campo
+  propertyTypeSelect.value = property.propertyType;
 
   // Formata e preenche os preços
   if (property.salePrice) {
@@ -539,9 +539,8 @@ function handleEditStart(id) {
   }
   rentalPeriodSelect.value = property.rentalPeriod || 'por Mês';
 
-
-  imagensInput.value = ''; // Limpa o input de arquivos
-  handleTransactionTypeChange(); // Mostra os campos corretos
+  imagensInput.value = '';
+  handleTransactionTypeChange();
 
   // Atualiza a UI para o modo de edição
   formImovel.classList.remove('hidden');
@@ -552,7 +551,10 @@ function handleEditStart(id) {
   mostrarFormBtn.classList.add('hidden');
   editButtons.classList.remove('hidden');
   cadastroAtivo = false;
-  
+
+  // Troca o texto do botão para "Encerrar Edição"
+  cancelEditBtn.querySelector('span').textContent = 'Encerrar Edição';
+
   formImovel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -652,7 +654,7 @@ async function handleEditSave() {
   formData.append('descricao', descricaoInput.value.trim());
   formData.append('contato', contatoInput.value.trim());
   formData.append('transactionType', transactionType);
-  formData.append('propertyType', propertyTypeSelect.value); // Novo campo
+  formData.append('propertyType', propertyTypeSelect.value);
   if (transactionType === 'Vender' || transactionType === 'Ambos') {
     formData.append('salePrice', unformatCurrency(salePriceInput.value));
   }
@@ -661,7 +663,6 @@ async function handleEditSave() {
     formData.append('rentalPeriod', rentalPeriodSelect.value);
   }
 
-  // Adiciona as novas coordenadas se tiverem sido alteradas
   if (newPropertyCoords) {
     formData.append('coords', JSON.stringify(newPropertyCoords));
   }
@@ -681,7 +682,6 @@ async function handleEditSave() {
     const updatedProperty = data.property;
     const marker = markers[updatedProperty.id];
 
-    // Move o marcador se a localização foi alterada
     if (newPropertyCoords) {
         marker.setLatLng(newPropertyCoords);
     }
@@ -690,7 +690,7 @@ async function handleEditSave() {
     marker.setPopupContent(createPopupContent(updatedProperty));
 
     updateStatus('Imóvel atualizado com sucesso!', 'success');
-    setTimeout(handleEditCancel, 2000);
+    // NÃO chama handleEditCancel aqui! Permanece em modo de edição
 
     // Limpa o estado de alteração de localização
     newPropertyCoords = null;
@@ -705,7 +705,7 @@ async function handleEditSave() {
   }
 }
 
-async function handleDelete(id) {
+function handleDelete(id) {
   const onConfirm = async () => {
     try {
       await apiCall(`/api/imoveis/${id}`, { method: 'DELETE', isModerator: currentUser.isModerator });
