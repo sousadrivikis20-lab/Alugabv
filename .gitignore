@@ -6,3 +6,6 @@ node_modules
 db.json
 users.json
 /uploads/
+
+# Arquivo de ambiente - NUNCA deve ser versionado
+.env

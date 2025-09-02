@@ -63,15 +63,13 @@ app.use(session({
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false, // Mais seguro e eficiente. Não cria sessões para visitantes não logados.
+    saveUninitialized: false,
     cookie: { 
-        secure: 'auto', // 'auto' é mais robusto para ambientes de proxy como o Render.
+        secure: process.env.NODE_ENV === 'production', // Força o uso de cookies seguros em produção (HTTPS). É mais explícito e confiável.
         httpOnly: true, 
         maxAge: 24 * 60 * 60 * 1000, // 1 dia
         sameSite: 'lax' // Essencial para segurança e compatibilidade de navegadores.
-    },
-    // Garante que o express-session confie no proxy, complementando o app.set('trust proxy', 1)
-    proxy: true
+    }
 }));
 
 // --- Middlewares de Autenticação ---
