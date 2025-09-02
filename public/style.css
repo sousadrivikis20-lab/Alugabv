@@ -8,6 +8,8 @@
   --accent-green: #27ae60; /* Verde principal */
   --accent-green-hover: #229954; /* Verde para hover */
   --border-color: #e0e0e0; /* Cor das bordas */
+  --danger-red: #e74c3c; /* Vermelho para ações de exclusão */
+  --danger-red-hover: #c0392b; /* Sombra do vermelho para hover */
 }
 
 /* --- Ações do Usuário --- */
@@ -42,11 +44,11 @@
 }
 
 #user-actions .danger-btn {
-  background-color: #e74c3c; /* Vermelho mais harmônico */
+  background-color: var(--danger-red);
 }
 
 #user-actions .danger-btn:hover {
-  background-color: #c0392b; /* Sombra mais escura para hover */
+  background-color: var(--danger-red-hover);
 }
 
 * {
@@ -661,14 +663,14 @@ form#form-imovel {
 
 /* Botão de perigo (Vermelho) - Sobrescreve o .danger-btn genérico */
 .modal-actions .danger-btn {
-  background-color: #e74c3c; /* Mesmo vermelho das ações do usuário */
+  background-color: var(--danger-red);
   color: #ffffff;
-  border-color: #e74c3c;
+  border-color: var(--danger-red);
 }
 
 .modal-actions .danger-btn:hover {
-  background-color: #c0392b;
-  border-color: #c0392b;
+  background-color: var(--danger-red-hover);
+  border-color: var(--danger-red-hover);
 }
 
 /* Botão secundário/cancelar (Estilo "outline") - Sobrescreve o .secondary-btn genérico */
@@ -1075,30 +1077,27 @@ button.loading .spinner {
   padding: 8px 16px;
   border: none;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: background-color 0.2s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  color: #ffffff; /* Cor do texto branca para ambos */
 }
 
 .popup-actions .edit-btn {
-  background: #4fc3f7; /* azul claro, amigável */
-  color: #fff;
+  background-color: var(--accent-green); /* Usa a cor de destaque do site */
 }
 
 .popup-actions .edit-btn:hover {
-  background: #039be5;
-  color: #fff;
+  background-color: var(--accent-green-hover);
 }
 
 .popup-actions .remove-btn {
-  background: #ff3c00; /* laranja amigável */
-  color: #fff;
+  background-color: var(--danger-red); /* Usa a cor de perigo definida */
 }
 
 .popup-actions .remove-btn:hover {
-  background: #f57c00;
-  color: #fff;
+  background-color: var(--danger-red-hover);
 }
 
 /* Ícones dos botões do popup alinhados verticalmente */

@@ -168,7 +168,17 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
         }
 
-        const userSessionData = { id: user.id, username: user.username, role: user.role };
+        // Verifica se o usuário logado é o moderador global
+        const moderatorUsername = (process.env.MODERATOR_USERNAME || '').toLowerCase();
+        const isModerator = user.username.toLowerCase() === moderatorUsername;
+
+        const userSessionData = {
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            isModerator: isModerator // Adiciona a flag de moderador à sessão
+        };
+
         req.session.user = userSessionData;
 
         req.session.save(err => {
