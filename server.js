@@ -369,25 +369,22 @@ app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
             return res.status(403).json({ message: 'A conta do moderador não pode ser excluída.' });
         }
 
-        if (userToDelete.role === 'owner') {
-            const properties = await dataManager.findPropertiesByOwner(id);
+        // Deleta o usuário e busca a lista de suas imagens para remoção do Cloudinary
+        const { deletedUserCount, imagesToDelete } = await dataManager.deleteUserAndContent(id);
 
-            properties.forEach(property => {
-                if (property.images && property.images.length > 0) {
-                    property.images.forEach(imagePath => {
-                        fs.unlink(path.join(__dirname, imagePath), (err) => {
-                            if (err) console.error(`Erro ao deletar arquivo de imagem ${imagePath}:`, err);
-                        });
-                    });
-                }
-            });
-            
-            await dataManager.deletePropertiesByOwner(id);
+        if (deletedUserCount === 0) {
+            return res.status(404).json({ message: 'Usuário não encontrado para exclusão.' });
         }
 
-        const deletedCount = await dataManager.deleteUser(id);
-        if (deletedCount === 0) {
-            return res.status(404).json({ message: 'Usuário não encontrado para exclusão.' });
+        // Remove as imagens associadas do Cloudinary
+        if (imagesToDelete && imagesToDelete.length > 0) {
+            const publicIds = imagesToDelete.map(url => {
+                const match = url.match(/\/v\d+\/(imoveis_site\/[^\.]+)/);
+                return match ? match[1] : null;
+            }).filter(id => id);
+            if (publicIds.length > 0) {
+                await cloudinary.api.delete_resources(publicIds);
+            }
         }
 
         req.session.destroy(err => {

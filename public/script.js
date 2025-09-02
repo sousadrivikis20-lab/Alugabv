@@ -352,8 +352,12 @@ function createPopupContent(property, doc = document) {
     container.appendChild(ownerInfo);
   }
 
-  // Botões de Ação (volta para o padrão anterior, sem blocos extras)
-  if (currentUser && currentUser.role === 'owner' && currentUser.id === ownerId) {
+  // Botões de Ação: aparecem se o usuário for o dono do imóvel OU um moderador.
+  const isOwner = currentUser && currentUser.id === ownerId;
+  const isModerator = currentUser && currentUser.isModerator;
+
+  // Apenas proprietários podiam ver os botões, mas agora moderadores também podem.
+  if (isOwner || isModerator) {
     const actionsContainer = doc.createElement('div');
     actionsContainer.className = 'popup-actions';
 

@@ -328,6 +328,31 @@ async function updatePropertiesUsername(ownerId, newUsername) {
     }
 }
 
+async function deleteUserAndContent(id) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Encontra todos os imóveis do usuário
+    const propertiesResult = await client.query('SELECT images FROM properties WHERE owner_id = $1', [id]);
+    const allImages = propertiesResult.rows.flatMap(p => p.images).filter(Boolean);
+
+    // Deleta os imóveis do banco de dados (se ON DELETE CASCADE não estiver configurado)
+    await client.query('DELETE FROM properties WHERE owner_id = $1', [id]);
+
+    // Deleta o usuário
+    const userDeleteResult = await client.query('DELETE FROM users WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    return { deletedUserCount: userDeleteResult.rowCount, imagesToDelete: allImages };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   initDB,
   findUserByUsername,
@@ -344,4 +369,5 @@ module.exports = {
   findPropertiesByOwner,
   deletePropertiesByOwner,
   updatePropertiesUsername,
+  deleteUserAndContent,
 };
