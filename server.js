@@ -82,6 +82,27 @@ const extractPublicId = (url) => {
 const isAuthenticated = (req, res, next) => req.session.user ? next() : res.status(401).json({ message: 'Não autorizado. Faça login para continuar.' });
 const isOwner = (req, res, next) => (req.session.user && req.session.user.role === 'owner') ? next() : res.status(403).json({ message: 'Acesso negado. Apenas proprietários.' });
 
+const isPropertyOwner = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const property = await dataManager.findPropertyById(id);
+
+        if (!property) {
+            return res.status(404).json({ message: 'Imóvel não encontrado.' });
+        }
+
+        if (property.ownerId !== req.session.user.id) {
+            return res.status(403).json({ message: 'Você não tem permissão para editar este imóvel.' });
+        }
+
+        req.property = property; // Passa os dados do imóvel para a rota
+        next();
+    } catch (error) {
+        console.error("Erro ao verificar propriedade:", error);
+        res.status(500).json({ message: 'Erro interno ao verificar permissões.' });
+    }
+};
+
 // --- Middleware de Depuração ---
 const debugSession = (req, res, next) => {
   const cookies = req.headers.cookie || 'Nenhum cookie enviado';
