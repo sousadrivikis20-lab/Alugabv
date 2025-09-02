@@ -545,6 +545,7 @@ form#form-imovel {
 }
 
 #save-edit-btn,
+#cancel-edit-btn, /* Adicionado para garantir mesma largura */
 .secondary-btn,
 .danger-btn,
 .tertiary-btn {
@@ -557,9 +558,18 @@ form#form-imovel {
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative; /* Para o spinner */
+  flex: 1 1 0; /* Faz ambos crescerem igualmente */
+  min-width: 0; /* Permite encolher em telas pequenas */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-#save-edit-btn { flex-grow: 1; background-color: var(--accent-green); }
+#save-edit-btn { background-color: var(--accent-green); }
+#cancel-edit-btn { background-color: var(--text-muted); color: #fff; }
+#cancel-edit-btn:hover { background-color: #555; }
+
 .secondary-btn { background-color: var(--text-muted); }
 .danger-btn { background-color: #c62828; }
 .danger-btn:hover { background-color: #e53935; }
@@ -580,11 +590,52 @@ form#form-imovel {
     transform: scale(1.1);
 }
 
-#price-fields-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  width: 100%;
+/* --- Alinhamento dos ícones nos popups dos imóveis --- */
+.leaflet-popup-content svg,
+.leaflet-popup-content .property-type-info svg,
+.leaflet-popup-content .popup-actions button svg {
+  vertical-align: middle !important;
+  margin-bottom: 0 !important;
+  margin-right: 6px;
+  position: relative;
+  top: 0.5px; /* Pequeno ajuste para alinhar melhor */
+}
+
+/* Garante alinhamento dos botões de ação no popup */
+.popup-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: transparent;
+}
+
+.popup-actions .edit-btn {
+  color: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.popup-actions .edit-btn:hover {
+  background-color: var(--accent-green-hover);
+  color: #ffffff;
+  border-color: var(--accent-green-hover);
+}
+
+.popup-actions .remove-btn {
+  color: var(--danger-red);
+  border-color: var(--danger-red);
+}
+
+.popup-actions .remove-btn:hover {
+  background-color: var(--danger-red-hover);
+  color: #ffffff;
+  border-color: var(--danger-red-hover);
 }
 
 /* --- Estilos do Modal de Confirmação --- */
@@ -1104,12 +1155,6 @@ button.loading .spinner {
   background-color: var(--danger-red-hover);
   color: #ffffff;
   border-color: var(--danger-red-hover);
-}
-
-/* Ícones dos botões do popup alinhados verticalmente */
-.popup-actions button svg {
-  vertical-align: middle;
-  margin-bottom: 0 !important;
 }
 
 /* --- Botão Colapsável (Gerenciar Conta) --- */
