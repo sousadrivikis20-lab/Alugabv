@@ -327,6 +327,8 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
             }
         }
 
+        // CORREÇÃO: Defina isModerator e passe como terceiro argumento
+        const isModerator = req.session.user.isModerator === true;
         const updatedProperty = await dataManager.updateProperty(id, updatedData, isModerator);
 
         res.json({ message: 'Imóvel atualizado com sucesso!', property: updatedProperty });
