@@ -354,7 +354,7 @@ function createPopupContent(property, doc = document) {
 
   // Botões de Ação: aparecem se o usuário for o dono do imóvel OU um moderador.
   const isOwner = currentUser && currentUser.id === ownerId;
-  const isModerator = currentUser && currentUser.role === 'moderator';
+  const isModerator = currentUser && currentUser.isModerator;
 
   // Apenas proprietários podiam ver os botões, mas agora moderadores também podem.
   if (isOwner || isModerator) {
