@@ -44,11 +44,15 @@
 }
 
 #user-actions .danger-btn {
-  background-color: var(--danger-red);
+  background-color: transparent;
+  color: var(--danger-red);
+  border: 1px solid var(--danger-red);
 }
 
 #user-actions .danger-btn:hover {
   background-color: var(--danger-red-hover);
+  color: #ffffff;
+  border-color: var(--danger-red-hover);
 }
 
 * {
@@ -1308,31 +1312,4 @@ button.loading .spinner {
 .leaflet-popup-content strong {
   display: inline;
   margin-bottom: 0;
-}
-
-/* --- Botão de Excluir Conta igual ao botão Remover do popup dos imóveis */
-#delete-account-btn,
-.account-actions .danger-btn {
-  background-color: transparent;
-  color: var(--danger-red);
-  border: 1px solid var(--danger-red);
-  border-radius: 6px;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 12px 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.3s;
-  cursor: pointer;
-  margin-top: 10px;
-}
-
-#delete-account-btn:hover,
-.account-actions .danger-btn:hover {
-  background-color: var(--danger-red-hover);
-  color: #fff;
-  border-color: var(--danger-red-hover);
 }
