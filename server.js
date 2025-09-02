@@ -94,8 +94,8 @@ const isPropertyOwner = async (req, res, next) => {
 
         // Adicionado: Verifica se o usuário logado é o moderador global definido no .env
         const isGlobalModerator = process.env.MODERATOR_USERNAME &&
-                                  req.session.user &&
-                                  req.session.user.username === process.env.MODERATOR_USERNAME;
+                                  req.session.user && // Garante que a comparação seja case-insensitive
+                                  req.session.user.username.toLowerCase() === process.env.MODERATOR_USERNAME.toLowerCase();
 
         // Permite a ação se o usuário for o dono do imóvel OU o moderador global
         if (property.ownerId !== req.session.user.id && !isGlobalModerator) {
@@ -365,7 +365,7 @@ app.delete('/api/users/:id', isAuthenticated, async (req, res) => {
 
         // Adicionado: Proteção para não deletar o moderador
         const moderatorUsername = process.env.MODERATOR_USERNAME;
-        if (moderatorUsername && userToDelete.username === moderatorUsername) {
+        if (moderatorUsername && userToDelete.username.toLowerCase() === moderatorUsername.toLowerCase()) {
             return res.status(403).json({ message: 'A conta do moderador não pode ser excluída.' });
         }
 

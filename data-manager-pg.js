@@ -5,10 +5,14 @@ async function initDB() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(36) PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
+        username VARCHAR(100) NOT NULL,
         password VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL
       );
+
+      -- Cria um índice ÚNICO e case-insensitive na coluna username.
+      -- Esta é a forma mais robusta de garantir que "user" e "User" sejam considerados o mesmo.
+      CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx ON users (LOWER(username));
 
       CREATE TABLE IF NOT EXISTS properties (
         id VARCHAR(36) PRIMARY KEY,
@@ -219,7 +223,8 @@ async function findPropertyById(id) {
 
 async function findUserByUsername(username) {
   try {
-    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    // A busca agora é case-insensitive para corresponder à regra do banco de dados.
+    const result = await pool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [username]);
     return result.rows[0];
   } catch (err) {
     console.error(`Erro ao buscar usuário ${username}:`, err);
@@ -232,7 +237,7 @@ async function createUser(user) {
     const result = await pool.query(`
       INSERT INTO users (id, username, password, role)
       VALUES ($1, $2, $3, $4)
-      ON CONFLICT (username) DO NOTHING
+      ON CONFLICT (LOWER(username)) DO NOTHING
       RETURNING id, username, role;
     `, [user.id, user.username, user.password, user.role]);
     
