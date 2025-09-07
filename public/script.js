@@ -110,6 +110,27 @@ function showToast(message, type = 'info') {
   });
 }
 
+// Função para mostrar/esconder senha
+function togglePasswordVisibility(button) {
+  const inputGroup = button.parentElement;
+  // Encontra o input de senha ou texto que é irmão do botão
+  const input = button.previousElementSibling;
+  if (!input || (input.tagName !== 'INPUT')) return;
+
+  const isPassword = input.type === 'password';
+  input.type = isPassword ? 'text' : 'password';
+  button.setAttribute('aria-label', isPassword ? 'Esconder senha' : 'Mostrar senha');
+
+  const eyeOpen = button.querySelector('.eye-icon-open');
+  const eyeClosed = button.querySelector('.eye-icon-closed');
+
+  if (eyeOpen && eyeClosed) {
+    eyeOpen.classList.toggle('hidden', isPassword);
+    eyeClosed.classList.toggle('hidden', !isPassword);
+  }
+}
+
+
 // Feedback de Carregamento em Botões
 function toggleLoading(button, isLoading) {
     if (!button) return;
@@ -814,11 +835,23 @@ async function handleChangePassword() {
   const formHtml = `
     <div class="modal-form-group">
       <label for="currentPasswordInput">Senha Atual</label>
-      <input type="password" id="currentPasswordInput" name="currentPassword" required autocomplete="current-password">
+      <div class="input-group">
+        <input type="password" id="currentPasswordInput" name="currentPassword" required autocomplete="current-password">
+        <button type="button" class="password-toggle-btn" aria-label="Mostrar senha">
+          <svg class="eye-icon-open" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/></svg>
+          <svg class="eye-icon-closed hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="m10.79 12.912-1.614-1.615a3.5 3.5 0 0 1-4.474-4.474l-2.06-2.06C.938 6.278 0 8 0 8s3 5.5 8 5.5a7.029 7.029 0 0 0 2.79-.588zM5.21 3.088A7.028 7.028 0 0 1 8 2.5c5 0 8 5.5 8 5.5s-.939 1.721-2.641 3.238l-2.062-2.062a3.5 3.5 0 0 0-4.474-4.474L5.21 3.089z"/><path d="M5.525 7.646a2.5 2.5 0 0 0 2.829 2.829l-2.83-2.829zm4.95.708-2.829-2.83a2.5 2.5 0 0 1 2.829 2.829zm3.171 6-12-12 .708-.708 12 12-.708.708z"/></svg>
+        </button>
+      </div>
     </div>
     <div class="modal-form-group">
       <label for="newPasswordInput">Nova Senha</label>
-      <input type="password" id="newPasswordInput" name="newPassword" required autocomplete="new-password">
+      <div class="input-group">
+        <input type="password" id="newPasswordInput" name="newPassword" required autocomplete="new-password">
+        <button type="button" class="password-toggle-btn" aria-label="Mostrar senha">
+          <svg class="eye-icon-open" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/></svg>
+          <svg class="eye-icon-closed hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="m10.79 12.912-1.614-1.615a3.5 3.5 0 0 1-4.474-4.474l-2.06-2.06C.938 6.278 0 8 0 8s3 5.5 8 5.5a7.029 7.029 0 0 0 2.79-.588zM5.21 3.088A7.028 7.028 0 0 1 8 2.5c5 0 8 5.5 8 5.5s-.939 1.721-2.641 3.238l-2.062-2.062a3.5 3.5 0 0 0-4.474-4.474L5.21 3.089z"/><path d="M5.525 7.646a2.5 2.5 0 0 0 2.829 2.829l-2.83-2.829zm4.95.708-2.829-2.83a2.5 2.5 0 0 1 2.829 2.829zm3.171 6-12-12 .708-.708 12 12-.708.708z"/></svg>
+        </button>
+      </div>
     </div>`;
 
   showActionModal('Alterar Senha', formHtml, async (formData) => {
@@ -960,6 +993,14 @@ async function handleLogout() {
 // --- Event Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
   checkSession().then(loadInitialProperties);
+});
+
+// Listener global para os botões de mostrar/esconder senha
+document.addEventListener('click', function(event) {
+    const toggleButton = event.target.closest('.password-toggle-btn');
+    if (toggleButton) {
+        togglePasswordVisibility(toggleButton);
+    }
 });
 
 map.on('click', handleMapClick);
