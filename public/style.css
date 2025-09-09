@@ -200,7 +200,7 @@ body, html {
 /* --- Estilo para o botão de mostrar/ocultar senha --- */
 .password-toggle-btn {
   position: absolute;
-  right: 8px; /* Distância da direita */
+  right: 15px; /* Alinhado com o padding do container para melhor posicionamento */
   top: 50%;
   transform: translateY(-50%);
   background: none;
