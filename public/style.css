@@ -44,15 +44,11 @@
 }
 
 #user-actions .danger-btn {
-  background-color: transparent;
-  color: var(--danger-red);
-  border: 1px solid var(--danger-red);
+  background-color: var(--danger-red);
 }
 
 #user-actions .danger-btn:hover {
   background-color: var(--danger-red-hover);
-  color: #ffffff;
-  border-color: var(--danger-red-hover);
 }
 
 * {
@@ -201,6 +197,24 @@ body, html {
   background-color: var(--accent-green-hover);
 }
 
+/* --- Estilo para o botão de mostrar/ocultar senha --- */
+.auth-form .input-group button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-form .input-group button svg {
+  color: var(--text-muted);
+  transition: color 0.2s ease-in-out;
+}
+.auth-form .input-group button:hover svg {
+  color: var(--text-dark);
+}
 /* --- Mensagens de Status --- */
 .status-message {
   width: 100%;
@@ -361,7 +375,7 @@ form#form-imovel {
 .sidebar form select {
   appearance: none; /* Remove a seta padrão do select */
   /* Adiciona uma seta personalizada */
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='%237f8c8d' viewBox='0 0 16 16'%3e%3cpath d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%237f8c8d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: 16px 12px;
@@ -543,92 +557,52 @@ form#form-imovel {
 /* --- Botões de Edição no Formulário --- */
 #edit-buttons {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 10px;
 }
 
-#edit-buttons button,
-#edit-buttons .tertiary-btn,
-#edit-buttons .secondary-btn {
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+#save-edit-btn,
+.secondary-btn,
+.danger-btn,
+.tertiary-btn {
+  color: #ffffff;
+  border: none;
+  padding: 12px;
+  border-radius: 5px;
   font-size: 16px;
   font-weight: 600;
-  padding: 14px 0;
-  border-radius: 5px;
   cursor: pointer;
   transition: all 0.3s ease;
-  position: relative;
+  position: relative; /* Para o spinner */
 }
 
-#save-edit-btn { background-color: var(--accent-green); color: #fff; border: none; }
-#save-edit-btn:hover { background-color: var(--accent-green-hover); }
-
-#cancel-edit-btn { background-color: var(--text-muted); color: #fff; border: none; }
-#cancel-edit-btn:hover { background-color: #555; }
-
-#change-location-btn {
+#save-edit-btn { flex-grow: 1; background-color: var(--accent-green); }
+.secondary-btn { background-color: var(--text-muted); }
+.danger-btn { background-color: #c62828; }
+.danger-btn:hover { background-color: #e53935; }
+.tertiary-btn {
   background-color: transparent;
-  border: 1.5px solid #2980b9;
+  border: 1px solid #2980b9;
   color: #2980b9;
+  flex-grow: 1;
 }
-#change-location-btn:hover {
+
+.tertiary-btn:hover {
   background-color: #2980b9;
-  color: #fff;
-}
-
-/* --- Alinhamento dos ícones nos popups dos imóveis --- */
-.leaflet-popup-content svg,
-.leaflet-popup-content .property-type-info svg,
-.leaflet-popup-content .popup-actions button svg {
-  vertical-align: middle !important;
-  margin-bottom: -2px !important; /* Ajuste fino para alinhar com o texto */
-  margin-right: 6px;
-  position: relative;
-  top: 0;
-}
-
-/* Garante alinhamento dos botões de ação no popup */
-.popup-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 16px;
-  border: 1px solid;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background-color: transparent;
-}
-
-.popup-actions .edit-btn {
-  color: var(--accent-green);
-  border-color: var(--accent-green);
-}
-
-.popup-actions .edit-btn:hover {
-  background-color: var(--accent-green-hover);
   color: #ffffff;
-  border-color: var(--accent-green-hover);
 }
 
-.popup-actions .remove-btn {
-  color: var(--danger-red);
-  border-color: var(--danger-red);
+.remove-image-btn:hover {
+    background-color: #e53935;
+    transform: scale(1.1);
 }
 
-.popup-actions .remove-btn:hover {
-  background-color: var(--danger-red-hover);
-  color: #ffffff;
-  border-color: var(--danger-red-hover);
+#price-fields-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
 }
 
 /* --- Estilos do Modal de Confirmação --- */
@@ -847,148 +821,90 @@ button.loading .spinner {
   background-repeat: no-repeat;
 }
 
-/* --- Botões dos popups (cards dos imóveis) */
-.popup-actions button {
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 16px;
-  border: 1px solid;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: transparent;
+/* --- Card do Imóvel no Popup --- */
+.leaflet-popup-content {
+  padding: 18px 14px 14px 14px; /* Mais espaço interno */
+  border-radius: 8px;
+  box-sizing: border-box;
 }
 
-.popup-actions .edit-btn {
-  color: var(--accent-green);
-  border-color: var(--accent-green);
+.leaflet-popup-content .property-type-info {
+  margin-bottom: 12px;
+  font-size: 15px;
+  gap: 8px;
 }
 
-.popup-actions .edit-btn:hover {
-  background-color: var(--accent-green-hover);
-  color: #ffffff;
-  border-color: var(--accent-green-hover);
-}
-
-.popup-actions .remove-btn {
-  color: var(--danger-red);
-  border-color: var(--danger-red);
-}
-
-.popup-actions .remove-btn:hover {
-  background-color: var(--danger-red-hover);
-  color: #ffffff;
-  border-color: var(--danger-red-hover);
-}
-
-/* --- Botão Colapsável (Gerenciar Conta) --- */
-.collapsible-btn {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 12px 15px;
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-dark);
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.collapsible-btn:hover {
-  background-color: #f0f0f0;
-}
-
-.collapsible-btn .arrow-icon {
-  transition: transform 0.3s ease;
-}
-
-.collapsible-btn.active .arrow-icon {
-  transform: rotate(90deg);
-}
-
-/* --- Conteúdo Colapsável --- */
-.collapsible-content {
-  overflow: hidden;
-  max-height: 0;
-  transition: max-height 0.4s ease-out, margin-top 0.4s ease-out;
-  margin-top: 0;
-}
-
-.collapsible-content:not(.hidden) {
-  max-height: 500px; /* Um valor alto o suficiente para conter os botões */
-  transition: max-height 0.4s ease-in;
-  margin-top: 15px;
-}
-
-/* --- Estilos para o formulário dentro do modal de ação --- */
-.modal-form-group {
-  margin-bottom: 15px;
-  text-align: left;
-}
-
-.modal-form-group label {
+.leaflet-popup-content b {
   display: block;
   margin-bottom: 8px;
-  font-weight: 500;
-  color: var(--text-muted);
-  font-size: 14px;
+  font-size: 18px;
+  color: var(--accent-green);
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
-.modal-form-group input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  font-size: 16px;
-  font-family: 'Poppins', sans-serif;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+.leaflet-popup-content .property-description {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-dark);
+  font-size: 15px;
+  line-height: 1.7;
 }
 
-.modal-form-group input:focus {
-  outline: none;
-  border-color: var(--accent-green);
-  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
-}
-
-/* Alinhamento perfeito dos ícones com texto em popups e botões */
-.leaflet-popup-content,
-.leaflet-popup-content .property-type-info,
-.leaflet-popup-content .popup-actions,
-.popup-actions button,
-.leaflet-popup-content a {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Para garantir que o texto fique na linha base e o ícone centralizado */
-.leaflet-popup-content svg,
-.leaflet-popup-content .property-type-info svg,
-.leaflet-popup-content .popup-actions button svg,
-.leaflet-popup-content a svg {
-  display: inline-block;
-  vertical-align: middle;
-  margin-bottom: 0 !important;
-  margin-right: 6px;
-  position: static;
-  top: 0;
-  width: 1em;
-  height: 1em;
-}
-
-/* Para textos longos, volta o display para block apenas onde necessário */
 .leaflet-popup-content span,
 .leaflet-popup-content strong {
-  display: inline;
-  margin-bottom: 0;
+  font-size: 15px;
+  line-height: 1.6;
 }
+
+.leaflet-popup-content .popup-gallery {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.leaflet-popup-content a {
+  margin-top: 10px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  gap: 7px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.leaflet-popup-content .property-owner {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* Espaçamento entre linhas de preço */
+.leaflet-popup-content span + br,
+.leaflet-popup-content strong + br {
+  display: none;
+}
+
+.leaflet-popup-content span {
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Espaço entre botões de ação */
+.popup-actions {
+  margin-top: 12px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px; /* Volta para o padrão anterior */
+}
+
 
 /* --- Design Responsivo --- */
 @media (max-width: 768px) {
@@ -1177,35 +1093,35 @@ button.loading .spinner {
   font-size: 13px;
   font-weight: 600;
   padding: 8px 16px;
-  border: 1px solid;
+  border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background-color: transparent;
+  color: #ffffff; /* Cor do texto branca para ambos */
 }
 
 .popup-actions .edit-btn {
-  color: var(--accent-green);
-  border-color: var(--accent-green);
+  background-color: var(--accent-green); /* Usa a cor de destaque do site */
 }
 
 .popup-actions .edit-btn:hover {
   background-color: var(--accent-green-hover);
-  color: #ffffff;
-  border-color: var(--accent-green-hover);
 }
 
 .popup-actions .remove-btn {
-  color: var(--danger-red);
-  border-color: var(--danger-red);
+  background-color: var(--danger-red); /* Usa a cor de perigo definida */
 }
 
 .popup-actions .remove-btn:hover {
   background-color: var(--danger-red-hover);
-  color: #ffffff;
-  border-color: var(--danger-red-hover);
+}
+
+/* Ícones dos botões do popup alinhados verticalmente */
+.popup-actions button svg {
+  vertical-align: middle;
+  margin-bottom: 0 !important;
 }
 
 /* --- Botão Colapsável (Gerenciar Conta) --- */
@@ -1281,35 +1197,8 @@ button.loading .spinner {
   box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
 }
 
-/* Alinhamento perfeito dos ícones com texto em popups e botões */
-.leaflet-popup-content,
-.leaflet-popup-content .property-type-info,
-.leaflet-popup-content .popup-actions,
-.popup-actions button,
-.leaflet-popup-content a {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Para garantir que o texto fique na linha base e o ícone centralizado */
-.leaflet-popup-content svg,
-.leaflet-popup-content .property-type-info svg,
-.leaflet-popup-content .popup-actions button svg,
+/* Ícone do WhatsApp alinhado com texto */
 .leaflet-popup-content a svg {
-  display: inline-block;
   vertical-align: middle;
   margin-bottom: 0 !important;
-  margin-right: 6px;
-  position: static;
-  top: 0;
-  width: 1em;
-  height: 1em;
-}
-
-/* Para textos longos, volta o display para block apenas onde necessário */
-.leaflet-popup-content span,
-.leaflet-popup-content strong {
-  display: inline;
-  margin-bottom: 0;
 }
