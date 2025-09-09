@@ -198,23 +198,33 @@ body, html {
 }
 
 /* --- Estilo para o botão de mostrar/ocultar senha --- */
-.auth-form .input-group button {
-  background: transparent;
+.password-toggle-btn {
+  position: absolute;
+  right: 8px; /* Distância da direita */
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
   border: none;
-  padding: 0;
   cursor: pointer;
+  padding: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #777; /* Cor do ícone */
+  z-index: 2; /* Garante que o botão fique sobre o input */
 }
 
-.auth-form .input-group button svg {
-  color: var(--text-muted);
-  transition: color 0.2s ease-in-out;
+.password-toggle-btn:hover {
+  color: #333; /* Cor do ícone no hover */
 }
-.auth-form .input-group button:hover svg {
-  color: var(--text-dark);
+
+/* Adiciona espaço no input para o botão não sobrepor o texto */
+.input-group input#login-password,
+.input-group input#register-password,
+.modal-form-group .input-group input[type="password"] {
+  padding-right: 40px;
 }
+
 /* --- Mensagens de Status --- */
 .status-message {
   width: 100%;
@@ -319,6 +329,7 @@ form#form-imovel {
 
 /* Novo: Grupo de input com ícone */
 .input-group {
+  position: relative; /* Essencial para posicionar o ícone da senha */
   width: 100%;
   display: flex;
   align-items: center;
