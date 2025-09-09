@@ -940,13 +940,26 @@ button.loading .spinner {
   }
 
   #map-container {
-    height: 60vh; /* Altura fixa para o mapa */
-    min-height: 400px; /* Garante uma altura mínima usável */
+    height: 50vh; /* Altura do mapa reduzida para ocupar menos tela */
+    min-height: 350px; /* Altura mínima garantida */
     flex-grow: 0; /* Impede que cresça para preencher o espaço */
   }
 
   .sidebar header {
     margin-bottom: 20px;
+  }
+
+  .logo {
+    font-size: 26px; /* Reduz um pouco a logo em tablets */
+  }
+
+  /* Aumenta a fonte dos inputs para 16px para evitar o zoom automático no iOS */
+  .sidebar form input,
+  .sidebar form select,
+  .input-group > input,
+  .input-group > select,
+  .input-group > textarea {
+    font-size: 16px;
   }
 }
 
