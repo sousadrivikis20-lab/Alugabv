@@ -589,7 +589,10 @@ form#form-imovel {
 }
 
 #save-edit-btn { flex-grow: 1; background-color: var(--accent-green); }
+/* O botão de cancelar edição (secondary) também deve ocupar a largura toda no formulário */
 .secondary-btn { background-color: var(--text-muted); }
+#cancel-edit-btn { flex-grow: 1; }
+
 .danger-btn { background-color: #c62828; }
 .danger-btn:hover { background-color: #e53935; }
 .tertiary-btn {
@@ -1117,35 +1120,33 @@ button.loading .spinner {
   font-size: 13px;
   font-weight: 600;
   padding: 8px 16px;
-  border: none;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #ffffff; /* Cor do texto branca para ambos */
+  background-color: transparent;
+  border: 1px solid;
 }
 
 .popup-actions .edit-btn {
-  background-color: var(--accent-green); /* Usa a cor de destaque do site */
+  color: var(--accent-green);
+  border-color: var(--accent-green);
 }
 
 .popup-actions .edit-btn:hover {
   background-color: var(--accent-green-hover);
+  color: #ffffff;
 }
 
 .popup-actions .remove-btn {
-  background-color: var(--danger-red); /* Usa a cor de perigo definida */
+  color: var(--danger-red);
+  border-color: var(--danger-red);
 }
 
 .popup-actions .remove-btn:hover {
   background-color: var(--danger-red-hover);
-}
-
-/* Ícones dos botões do popup alinhados verticalmente */
-.popup-actions button svg {
-  vertical-align: middle;
-  margin-bottom: 0 !important;
+  color: #ffffff;
 }
 
 /* --- Botão Colapsável (Gerenciar Conta) --- */
@@ -1219,10 +1220,4 @@ button.loading .spinner {
   outline: none;
   border-color: var(--accent-green);
   box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
-}
-
-/* Ícone do WhatsApp alinhado com texto */
-.leaflet-popup-content a svg {
-  vertical-align: middle;
-  margin-bottom: 0 !important;
 }
