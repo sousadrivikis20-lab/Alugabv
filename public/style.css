@@ -904,7 +904,9 @@ button.loading .spinner {
   display: none;
 }
 
-.leaflet-popup-content span {
+/* Aplica espaçamento apenas aos spans de preço, que são filhos diretos do conteúdo do popup,
+   para não quebrar o alinhamento dos ícones com texto (que usam spans aninhados). */
+.leaflet-popup-content > span {
   display: block;
   margin-bottom: 6px;
 }
