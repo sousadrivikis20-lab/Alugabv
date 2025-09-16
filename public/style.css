@@ -921,35 +921,80 @@ button.loading .spinner {
   gap: 5px; /* Volta para o padrão anterior */
 }
 
+/* --- Botão de Toggle e Overlay para Responsivo --- */
+.sidebar-toggle-btn {
+  display: none; /* Oculto em telas grandes */
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 1002; /* Acima do mapa, mas abaixo do sidebar quando aberto */
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1001; /* Acima do mapa, abaixo do sidebar */
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.map-overlay:not(.hidden) {
+  opacity: 1;
+}
+
+
 
 /* --- Design Responsivo --- */
 @media (max-width: 768px) {
 
   body, html {
-    overflow: visible; /* Permite rolagem em telas menores */
+    overflow: hidden; /* Permite rolagem em telas menores */
   }
 
   .container {
-    flex-direction: column;
-    height: auto; /* Altura automática para permitir rolagem */
+    flex-direction: row; /* Mantém a direção de linha */
+    height: 100vh; /* Ocupa a tela toda */
+    overflow: hidden; /* Previne rolagem do container */
   }
   .sidebar {
-    width: 100%;
-    height: auto;
-    max-height: none; /* Remove a altura máxima */
-    transform: none;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    padding: 20px 15px; /* Padding reduzido para telas menores */
-    overflow-y: visible; /* Remove a rolagem interna da sidebar */
+    position: absolute; /* Posição absoluta para sobrepor o mapa */
+    width: 320px; /* Largura fixa para o menu lateral */
+    max-width: 85vw; /* Garante que não ocupe a tela toda em paisagem */
+    height: 100%; /* Ocupa a altura toda */
+    transform: translateX(-100%); /* Começa fora da tela */
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    z-index: 1003; /* Garante que o sidebar fique acima de tudo */
+    /* As outras propriedades como overflow-y: auto já estão definidas e são úteis aqui */
+  }
+
+  /* Classe para mostrar o sidebar */
+  .sidebar.open {
+    transform: translateX(0);
   }
 
   #map-container {
-    height: 50vh; /* Altura do mapa reduzida para ocupar menos tela */
-    min-height: 350px; /* Altura mínima garantida */
-    flex-grow: 0; /* Impede que cresça para preencher o espaço */
+    height: 100vh; /* Mapa ocupa a tela inteira */
+    flex-grow: 1; /* Garante que o mapa preencha o espaço restante */
   }
 
+  /* Mostra o botão de toggle em telas pequenas */
+  .sidebar-toggle-btn {
+    display: flex;
+  }
   .sidebar header {
     margin-bottom: 20px;
   }
