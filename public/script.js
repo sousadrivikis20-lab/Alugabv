@@ -57,9 +57,6 @@ const existingImagesContainer = document.getElementById('existing-images');
 const saveEditBtn = document.getElementById('save-edit-btn');
 const cancelEditBtn = document.getElementById('cancel-edit-btn');
 const changeLocationBtn = document.getElementById('change-location-btn');
-const sidebar = document.querySelector('.sidebar');
-const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-const mapOverlay = document.getElementById('map-overlay');
 const searchInput = document.getElementById('search-input');
 
 // Elementos do Modal de Confirmação
@@ -1171,16 +1168,3 @@ actionModal.addEventListener('click', (e) => {
     hideActionModal();
   }
 });
-
-// Listeners para o menu responsivo
-if (sidebarToggleBtn && sidebar && mapOverlay) {
-  sidebarToggleBtn.addEventListener('click', () => {
-    sidebar.classList.toggle('open');
-    mapOverlay.classList.toggle('hidden');
-  });
-
-  mapOverlay.addEventListener('click', () => {
-    sidebar.classList.remove('open');
-    mapOverlay.classList.add('hidden');
-  });
-}
