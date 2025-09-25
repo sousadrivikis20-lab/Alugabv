@@ -32,6 +32,13 @@ async function initDB() {
       );
     `);
 
+    // --- Migração: Garante que a coluna 'neighborhood' exista ---
+    // Este comando é seguro e só adiciona a coluna se ela não existir.
+    // Isso corrige o erro em bancos de dados que foram criados antes da adição do campo.
+    await pool.query(`
+      ALTER TABLE properties ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100);
+    `);
+
     // Adiciona a criação da tabela de sessões, usada pelo connect-pg-simple
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "user_sessions" (
@@ -143,7 +150,7 @@ async function updateProperty(id, propertyData, isModerator = false) {
         rental_period = $9,
         images = $10,
         neighborhood = $11
-      WHERE id = $11
+      WHERE id = $12
     `;
     let params = [
       propertyData.nome,
