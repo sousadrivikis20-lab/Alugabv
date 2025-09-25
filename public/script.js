@@ -350,6 +350,7 @@ function createPopupContent(property, doc = document) {
     container.appendChild(span);
     container.appendChild(doc.createElement('br'));
   };
+
   if ((transactionType === 'Vender' || transactionType === 'Ambos') && salePrice) {
     createPriceLine('Venda', salePrice);
   }
@@ -1048,6 +1049,20 @@ function handleTransactionTypeChange() {
   }
 }
 
+function handlePropertyTypeChange() {
+  const type = propertyTypeSelect.value;
+  if (type === 'Terreno') {
+    // Se for terreno, força a transação para "Vender" e desabilita o select
+    transactionTypeSelect.value = 'Vender';
+    transactionTypeSelect.disabled = true;
+    handleTransactionTypeChange(); // Atualiza os campos de preço
+  } else {
+    // Se for outro tipo, reabilita o select
+    transactionTypeSelect.disabled = false;
+  }
+}
+
+
 mostrarFormBtn.addEventListener('click', togglePropertyForm);
 
 toggleLoginBtn.addEventListener('click', () => {
@@ -1072,6 +1087,7 @@ cancelEditBtn.addEventListener('click', handleEditCancel);
 changeLocationBtn.addEventListener('click', handleChangeLocationStart);
 searchInput.addEventListener('input', filterProperties); // Listener para o campo de busca
 transactionTypeSelect.addEventListener('change', handleTransactionTypeChange);
+propertyTypeSelect.addEventListener('change', handlePropertyTypeChange);
 salePriceInput.addEventListener('input', () => formatCurrency(salePriceInput));
 rentalPriceInput.addEventListener('input', () => formatCurrency(rentalPriceInput));
 // Garante que o campo de WhatsApp aceite apenas números
