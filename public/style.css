@@ -916,7 +916,7 @@ button.loading .spinner {
   font-size: 15px;
   font-weight: 600;
   gap: 7px;
-  display: inline-flex;
+  display: flex;
   align-items: center;
 }
 
