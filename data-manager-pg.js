@@ -20,7 +20,6 @@ async function initDB() {
         id VARCHAR(36) PRIMARY KEY,
         nome VARCHAR(255) NOT NULL,
         descricao TEXT,
-        contato VARCHAR(100) NOT NULL,
         coords JSONB NOT NULL,
         owner_id VARCHAR(36) REFERENCES users(id),
         owner_username VARCHAR(100),
@@ -40,6 +39,11 @@ async function initDB() {
     // Isso corrige o erro em bancos de dados que foram criados antes da adição do campo.
     await pool.query(`
       ALTER TABLE properties ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100);
+    `);
+
+    // --- Migração: Remove a coluna 'contato' obsoleta da tabela de properties ---
+    await pool.query(`
+      ALTER TABLE properties DROP COLUMN IF EXISTS contato;
     `);
 
     // --- Migração: Garante que a coluna 'email' exista na tabela de usuários ---
@@ -90,7 +94,6 @@ async function readImoveis() {
       id: row.id,
       nome: row.nome,
       descricao: row.descricao,
-      contato: row.contato,
       coords: row.coords,
       ownerId: row.owner_id,
       ownerUsername: row.owner_username,
@@ -115,17 +118,16 @@ async function addProperty(property) {
   try {
     const result = await pool.query(`
       INSERT INTO properties (
-        id, nome, descricao, contato, coords, 
+        id, nome, descricao, coords, 
         owner_id, owner_username, transaction_type,
         property_type, sale_price, rental_price,
         rental_period, images, neighborhood, contact_method
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *;
     `, [
       property.id,
       property.nome,
       property.descricao,
-      property.contato,
       property.coords,
       property.ownerId,
       property.ownerUsername,
@@ -143,7 +145,6 @@ async function addProperty(property) {
       id: row.id,
       nome: row.nome,
       descricao: row.descricao,
-      contato: row.contato,
       coords: row.coords,
       ownerId: row.owner_id,
       ownerUsername: row.owner_username,
@@ -167,7 +168,6 @@ async function updateProperty(id, propertyData, isModerator = false) {
       UPDATE properties SET
         nome = $1,
         descricao = $2,
-        contato = $3,
         coords = $4,
         transaction_type = $5,
         property_type = $6,
@@ -176,13 +176,13 @@ async function updateProperty(id, propertyData, isModerator = false) {
         rental_period = $9,
         images = $10,        
         neighborhood = $11,
-        contact_method = $12
-      WHERE id = $13
+        contact_method = $12,
+        coords = $3
+      WHERE id = $14
     `;
     let params = [
       propertyData.nome,
       propertyData.descricao,
-      propertyData.contato,
       propertyData.coords,
       propertyData.transactionType,
       propertyData.propertyType,
@@ -196,7 +196,7 @@ async function updateProperty(id, propertyData, isModerator = false) {
     ];
 
     if (!isModerator) {
-      query += ' AND owner_id = $14';
+      query += ' AND owner_id = $15';
       params.push(propertyData.ownerId);
     }
 
@@ -214,7 +214,6 @@ async function updateProperty(id, propertyData, isModerator = false) {
       id: row.id,
       nome: row.nome,
       descricao: row.descricao,
-      contato: row.contato,
       coords: row.coords,
       ownerId: row.owner_id,
       ownerUsername: row.owner_username,
@@ -267,7 +266,6 @@ async function findPropertyById(id) {
       id: row.id,
       nome: row.nome,
       descricao: row.descricao,
-      contato: row.contato,
       coords: row.coords,
       ownerId: row.owner_id,
       ownerUsername: row.owner_username,

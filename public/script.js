@@ -29,7 +29,6 @@ const propertyInstructions = document.getElementById('property-instructions');
 const formStatus = document.getElementById('form-status');
 const nomeInput = document.getElementById('nome');
 const descricaoInput = document.getElementById('descricao');
-const contatoInput = document.getElementById('contato');
 const imagensInput = document.getElementById('imagens');
 const transactionTypeSelect = document.getElementById('transactionType');
 const priceFieldsContainer = document.getElementById('price-fields-container');
@@ -320,7 +319,6 @@ function unformatCurrency(value) {
 function isFormValid() {
   const nome = nomeInput.value.trim();
   const descricao = descricaoInput.value.trim();
-  const contato = contatoInput.value.trim();
   const transactionType = transactionTypeSelect.value;
   const propertyType = propertyTypeSelect.value; // Novo campo
   const neighborhood = neighborhoodSelect.value;
@@ -330,7 +328,7 @@ function isFormValid() {
 
   if (!nome || !descricao || !transactionType || !propertyType || !neighborhood || !contactMethod) return false;
 
-  if (transactionType === 'Vender' && salePrice <= 0) return false; // 'contato' não é mais obrigatório aqui
+  if (transactionType === 'Vender' && salePrice <= 0) return false;
   if (transactionType === 'Alugar' && rentalPrice <= 0) return false;
   if (transactionType === 'Ambos' && (salePrice <= 0 || rentalPrice <= 0)) return false;
 
@@ -338,8 +336,8 @@ function isFormValid() {
 }
 
 function createPopupContent(property, doc = document) {
-  const { id, nome, descricao, contato, ownerId, ownerUsername, images, transactionType, salePrice, rentalPrice, rentalPeriod, propertyType, ownerEmail, ownerPhone, contactMethod } = property;
-  const numeroWhatsApp = String(ownerPhone || contato || '').replace(/\D/g, '');
+  const { id, nome, descricao, ownerId, ownerUsername, images, transactionType, salePrice, rentalPrice, rentalPeriod, propertyType, ownerEmail, ownerPhone, contactMethod } = property;
+  const numeroWhatsApp = String(ownerPhone || '').replace(/\D/g, '');
   const linkWhatsApp = `https://wa.me/55${numeroWhatsApp}`;
 
   const container = doc.createElement('div');
@@ -540,7 +538,6 @@ function handleMapClick(e) {
   const formData = new FormData();
   formData.append('nome', nomeInput.value.trim());
   formData.append('descricao', descricaoInput.value.trim());
-  formData.append('contato', contatoInput.value.trim());
   formData.append('coords', JSON.stringify(e.latlng));
   formData.append('transactionType', transactionTypeSelect.value);
   formData.append('propertyType', propertyTypeSelect.value); // Novo campo
@@ -634,7 +631,6 @@ function handleEditStart(id) {
 
   nomeInput.value = property.nome;
   descricaoInput.value = property.descricao || '';
-  contatoInput.value = property.contato;
   transactionTypeSelect.value = property.transactionType;
   propertyTypeSelect.value = property.propertyType;
   neighborhoodSelect.value = property.neighborhood || '';
@@ -768,7 +764,6 @@ async function handleEditSave() {
   const transactionType = transactionTypeSelect.value;
   formData.append('nome', nomeInput.value.trim());
   formData.append('descricao', descricaoInput.value.trim());
-  formData.append('contato', contatoInput.value.trim());
   formData.append('transactionType', transactionType);
   formData.append('propertyType', propertyTypeSelect.value);
   formData.append('neighborhood', neighborhoodSelect.value);
@@ -1244,9 +1239,6 @@ propertyTypeSelect.addEventListener('change', handlePropertyTypeChange);
 salePriceInput.addEventListener('input', () => formatCurrency(salePriceInput));
 rentalPriceInput.addEventListener('input', () => formatCurrency(rentalPriceInput));
 // Garante que o campo de WhatsApp aceite apenas números
-contatoInput.addEventListener('input', () => {
-  contatoInput.value = contatoInput.value.replace(/\D/g, '');
-});
 document.getElementById('register-phone').addEventListener('input', (e) => {
   e.target.value = e.target.value.replace(/\D/g, '');
 });

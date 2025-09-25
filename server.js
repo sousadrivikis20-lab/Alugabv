@@ -247,7 +247,7 @@ app.get('/api/imoveis', async (req, res) => {
 
 app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), async (req, res) => {
     try {
-        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description, neighborhood, contactMethod } = req.body;
+        const { nome, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description, neighborhood, contactMethod } = req.body;
         const propertyDescricao = descricao !== undefined ? descricao : description;
         if (!nome || !coords || !transactionType || !propertyType || !propertyDescricao || !neighborhood || !contactMethod) {
             return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
@@ -281,7 +281,6 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             id: uuidv4(),
             nome,
             descricao: propertyDescricao,
-            contato,
             transactionType,
             propertyType,
             salePrice: salePrice ? parseFloat(salePrice) : null,
@@ -321,7 +320,6 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
         const updatedData = {
             nome: req.body.nome || existingProperty.nome,
             descricao: newDescription || existingProperty.descricao,
-            contato: req.body.contato || existingProperty.contato,
             transactionType: req.body.transactionType || existingProperty.transactionType,
             propertyType: req.body.propertyType || existingProperty.propertyType,
             coords: req.body.coords ? JSON.parse(req.body.coords) : existingProperty.coords,
