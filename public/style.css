@@ -973,8 +973,10 @@ button.loading .spinner {
     font-size: 16px;
   }
 
+  /* Em telas menores, permite que os filtros fiquem lado a lado se houver espaço,
+     em vez de forçar uma coluna única. */
   .filter-controls {
-    flex-direction: column;
+    gap: 15px; /* Aumenta o espaçamento vertical quando eles quebram a linha */
   }
 }
 
