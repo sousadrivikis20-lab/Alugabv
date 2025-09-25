@@ -166,19 +166,18 @@ async function updateProperty(id, propertyData, isModerator = false) {
   try {
     let query = `
       UPDATE properties SET
-        nome = $1,
-        descricao = $2,
-        coords = $4,
-        transaction_type = $5,
-        property_type = $6,
-        sale_price = $7,
-        rental_price = $8,
-        rental_period = $9,
-        images = $10,        
-        neighborhood = $11,
-        contact_method = $12,
-        coords = $3
-      WHERE id = $14
+        nome = $1,             -- 1
+        descricao = $2,        -- 2
+        coords = $3,           -- 3
+        transaction_type = $4, -- 4
+        property_type = $5,    -- 5
+        sale_price = $6,       -- 6
+        rental_price = $7,     -- 7
+        rental_period = $8,    -- 8
+        images = $9,           -- 9
+        neighborhood = $10,    -- 10
+        contact_method = $11   -- 11
+      WHERE id = $12           -- 12
     `;
     let params = [
       propertyData.nome,
@@ -196,8 +195,8 @@ async function updateProperty(id, propertyData, isModerator = false) {
     ];
 
     if (!isModerator) {
-      query += ' AND owner_id = $15';
-      params.push(propertyData.ownerId);
+      query += ' AND owner_id = $13'; // O próximo parâmetro é 13
+      params.push(propertyData.ownerId); // Adiciona o ownerId ao final
     }
 
     query += ' RETURNING *;';
