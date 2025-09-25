@@ -125,11 +125,7 @@ body, html {
 }
 
 /* Nova seção para filtros */
-#filters-panel {
-  margin-bottom: 20px; /* Espaço entre filtros e painel do usuário */
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
-}
+
 
 /* Container para os novos filtros */
 .filter-controls {
