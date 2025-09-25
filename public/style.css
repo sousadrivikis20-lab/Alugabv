@@ -445,6 +445,21 @@ label.input-group {
 #property-instructions ol { margin: 0; padding-left: 20px; }
 #property-instructions li { margin-bottom: 5px; color: var(--text-muted); }
 
+/* Estilo para as instruções de filtro */
+#filter-instructions {
+    background-color: #e7f3fe; /* Azul claro */
+    border-left: 4px solid #2980b9; /* Azul do tema de info */
+    padding: 12px 16px;
+    margin-top: 20px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+#filter-instructions p { margin: 0 0 8px 0; font-weight: 600; }
+#filter-instructions ul { margin: 0; padding-left: 20px; }
+#filter-instructions li { margin-bottom: 5px; color: var(--text-muted); }
+
 /* Estilos para o tipo de imóvel no popup */
 .property-type-info {
   display: flex;
@@ -981,6 +996,7 @@ button.loading .spinner {
   /* Em telas menores, permite que os filtros fiquem lado a lado se houver espaço,
      em vez de forçar uma coluna única. */
   .filter-controls {
+    flex-direction: column; /* Força os filtros a empilharem verticalmente no mobile */
     gap: 15px; /* Aumenta o espaçamento vertical quando eles quebram a linha */
   }
 
