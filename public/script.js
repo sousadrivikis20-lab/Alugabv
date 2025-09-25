@@ -318,7 +318,7 @@ function createPopupContent(property, doc = document) {
       propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-shop-window" viewBox="0 0 16 16"><path d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35L14.75 4H11V2H5v2H1.25L2.97 1.35zM1 5h14v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5zm6 0v2H5V5h2zm2 0v2h2V5H9zm2 3v2H9V8h2zm-2 0v2H7V8h2zm-2 0v2H5V8h2zm2 3v2H9v-2h2zm-2 0v2H7v-2h2z"/></svg>`;
       break;
     case 'Terreno':
-      iconSvg = `<svg viewBox="0 0 16 16"><path d="M7 16h2V6h5a1 1 0 0 0 .8-.4l.975-1.3a.5.5 0 0 0 0-.6L14.8 2.4a1 1 0 0 0-.8-.4H9V1a1 1 0 0 0-2 0v1H2a1 1 0 0 0-.8.4L.225 3.7a.5.5 0 0 0 0 .6l.975 1.3a1 1 0 0 0 .8.4h5v10z"/></svg>`;
+      propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-signpost-split-fill" viewBox="0 0 16 16"><path d="M7 16h2V6h5a1 1 0 0 0 .8-.4l.975-1.3a.5.5 0 0 0 0-.6L14.8 2.4a1 1 0 0 0-.8-.4H9V1a1 1 0 0 0-2 0v1H2a1 1 0 0 0-.8.4L.225 3.7a.5.5 0 0 0 0 .6l.975 1.3a1 1 0 0 0 .8.4h5v10z"/></svg>`;
       break;
     default:
       propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-geo-alt-fill" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`; // Ícone genérico
@@ -349,7 +349,6 @@ function createPopupContent(property, doc = document) {
     span.appendChild(strong);
     span.append(`${formatPrice(price)} ${period}`.trim());
     container.appendChild(span);
-    container.appendChild(doc.createElement('br'));
   };
 
   if ((transactionType === 'Vender' || transactionType === 'Ambos') && salePrice) {
@@ -1156,7 +1155,7 @@ function getPropertyMarkerIcon(propertyType) {
       iconSvg = `<svg viewBox="0 0 16 16"><path d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35L14.75 4H11V2H5v2H1.25L2.97 1.35zM1 5h14v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5zm6 0v2H5V5h2zm2 0v2h2V5H9zm2 3v2H9V8h2zm-2 0v2H7V8h2zm-2 0v2H5V8h2zm2 3v2H9v-2h2zm-2 0v2H7v-2h2z"/></svg>`;
       break;
     case 'Terreno':
-      propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-signpost-split-fill" viewBox="0 0 16 16"><path d="M7 16h2V6h5a1 1 0 0 0 .8-.4l.975-1.3a.5.5 0 0 0 0-.6L14.8 2.4a1 1 0 0 0-.8-.4H9V1a1 1 0 0 0-2 0v1H2a1 1 0 0 0-.8.4L.225 3.7a.5.5 0 0 0 0 .6l.975 1.3a1 1 0 0 0 .8.4h5v10z"/></svg>`;
+      iconSvg = `<svg viewBox="0 0 16 16"><path d="M7 16h2V6h5a1 1 0 0 0 .8-.4l.975-1.3a.5.5 0 0 0 0-.6L14.8 2.4a1 1 0 0 0-.8-.4H9V1a1 1 0 0 0-2 0v1H2a1 1 0 0 0-.8.4L.225 3.7a.5.5 0 0 0 0 .6l.975 1.3a1 1 0 0 0 .8.4h5v10z"/></svg>`;
       break;
     default:
       iconSvg = `<svg viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>`; // Ícone genérico
