@@ -27,6 +27,7 @@ async function initDB() {
         sale_price DECIMAL(10,2),
         rental_price DECIMAL(10,2),
         rental_period VARCHAR(50),
+        neighborhood VARCHAR(100),
         images TEXT[]
       );
     `);
@@ -69,7 +70,8 @@ async function readImoveis() {
       salePrice: row.sale_price,
       rentalPrice: row.rental_price,
       rentalPeriod: row.rental_period,
-      images: row.images || []
+      images: row.images || [],
+      neighborhood: row.neighborhood
     }));
   } catch (err) {
     console.error('Erro ao ler imóveis:', err);
@@ -83,9 +85,9 @@ async function addProperty(property) {
       INSERT INTO properties (
         id, nome, descricao, contato, coords, 
         owner_id, owner_username, transaction_type, 
-        property_type, sale_price, rental_price, 
-        rental_period, images
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        property_type, sale_price, rental_price,
+        rental_period, images, neighborhood
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *;
     `, [
       property.id,
@@ -100,7 +102,8 @@ async function addProperty(property) {
       property.salePrice,
       property.rentalPrice,
       property.rentalPeriod,
-      property.images || []
+      property.images || [],
+      property.neighborhood
     ]);
     const row = result.rows[0];
     return {
@@ -116,7 +119,8 @@ async function addProperty(property) {
       salePrice: row.sale_price,
       rentalPrice: row.rental_price,
       rentalPeriod: row.rental_period,
-      images: row.images || []
+      images: row.images || [],
+      neighborhood: row.neighborhood
     };
   } catch (err) {
     console.error('Erro ao adicionar imóvel:', err);
@@ -137,7 +141,8 @@ async function updateProperty(id, propertyData, isModerator = false) {
         sale_price = $7,
         rental_price = $8,
         rental_period = $9,
-        images = $10
+        images = $10,
+        neighborhood = $11
       WHERE id = $11
     `;
     let params = [
@@ -150,12 +155,13 @@ async function updateProperty(id, propertyData, isModerator = false) {
       propertyData.salePrice,
       propertyData.rentalPrice,
       propertyData.rentalPeriod,
-      propertyData.images,
+      propertyData.images,      
+      propertyData.neighborhood,
       id
     ];
 
     if (!isModerator) {
-      query += ' AND owner_id = $12';
+      query += ' AND owner_id = $13';
       params.push(propertyData.ownerId);
     }
 
@@ -182,7 +188,8 @@ async function updateProperty(id, propertyData, isModerator = false) {
       salePrice: row.sale_price,
       rentalPrice: row.rental_price,
       rentalPeriod: row.rental_period,
-      images: row.images || []
+      images: row.images || [],
+      neighborhood: row.neighborhood
     };
   } catch (err) {
     console.error(`Erro ao atualizar imóvel ${id}:`, err);
@@ -229,7 +236,8 @@ async function findPropertyById(id) {
       salePrice: row.sale_price,
       rentalPrice: row.rental_price,
       rentalPeriod: row.rental_period,
-      images: row.images || []
+      images: row.images || [],
+      neighborhood: row.neighborhood
     };
   } catch (err) {
     console.error(`Erro ao buscar imóvel por ID ${id}:`, err);

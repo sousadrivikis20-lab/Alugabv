@@ -40,6 +40,7 @@ const salePriceInput = document.getElementById('salePrice');
 const rentalPriceInput = document.getElementById('rentalPrice');
 const propertyTypeSelect = document.getElementById('propertyType');
 const rentalPeriodSelect = document.getElementById('rentalPeriod');
+const neighborhoodSelect = document.getElementById('neighborhood');
 
 
 // Elementos de Autenticação
@@ -229,16 +230,8 @@ function populateFilters(properties) {
 
   properties.forEach(prop => {
     if (prop.propertyType) propertyTypes.add(prop.propertyType);
-    // Assumindo que o bairro está no campo 'nome' ou 'descricao'
-    // Uma solução ideal seria ter um campo 'bairro' no banco de dados.
-    // Por enquanto, vamos extrair de uma lista pré-definida para demonstração.
-    // Exemplo: "Apartamento no Centro" -> Bairro "Centro"
-    const knownNeighborhoods = ['Centro', 'Boa Viagem', 'Pina', 'Setúbal', 'Imbiribeira']; // Lista de exemplo
-    knownNeighborhoods.forEach(bairro => {
-      if (prop.nome.toLowerCase().includes(bairro.toLowerCase()) || prop.descricao.toLowerCase().includes(bairro.toLowerCase())) {
-        neighborhoods.add(bairro);
-      }
-    });
+    // Agora usamos o campo 'neighborhood' que vem do banco de dados
+    if (prop.neighborhood) neighborhoods.add(prop.neighborhood);
   });
 
   // Popula filtro de Tipo de Imóvel
@@ -280,10 +273,8 @@ function filterProperties() {
     // 2. Filtro por tipo de imóvel
     const typeMatch = selectedType === '' || property.propertyType === selectedType;
 
-    // 3. Filtro por bairro (verificando no nome e descrição)
-    const neighborhoodMatch = selectedNeighborhood === '' || 
-                              propertyName.includes(selectedNeighborhood.toLowerCase()) || 
-                              propertyDescription.includes(selectedNeighborhood.toLowerCase());
+    // 3. Filtro por bairro (usando o campo específico)
+    const neighborhoodMatch = selectedNeighborhood === '' || property.neighborhood === selectedNeighborhood;
 
     // O marcador só é visível se TODAS as condições forem verdadeiras
     if (textMatch && typeMatch && neighborhoodMatch) {
@@ -319,10 +310,11 @@ function isFormValid() {
   const contato = contatoInput.value.trim();
   const transactionType = transactionTypeSelect.value;
   const propertyType = propertyTypeSelect.value; // Novo campo
+  const neighborhood = neighborhoodSelect.value;
   const salePrice = unformatCurrency(salePriceInput.value);
   const rentalPrice = unformatCurrency(rentalPriceInput.value);
 
-  if (!nome || !descricao || !contato || !transactionType || !propertyType) return false; // Valida propertyType e descricao
+  if (!nome || !descricao || !contato || !transactionType || !propertyType || !neighborhood) return false;
 
   if (transactionType === 'Vender' && salePrice <= 0) return false;
   if (transactionType === 'Alugar' && rentalPrice <= 0) return false;
@@ -516,6 +508,7 @@ function handleMapClick(e) {
   formData.append('coords', JSON.stringify(e.latlng));
   formData.append('transactionType', transactionTypeSelect.value);
   formData.append('propertyType', propertyTypeSelect.value); // Novo campo
+  formData.append('neighborhood', neighborhoodSelect.value);
 
   const transactionType = transactionTypeSelect.value;
   if (transactionType === 'Vender' || transactionType === 'Ambos') {
@@ -604,6 +597,7 @@ function handleEditStart(id) {
   contatoInput.value = property.contato;
   transactionTypeSelect.value = property.transactionType;
   propertyTypeSelect.value = property.propertyType;
+  neighborhoodSelect.value = property.neighborhood || '';
 
   // Formata e preenche os preços
   if (property.salePrice) {
@@ -736,6 +730,7 @@ async function handleEditSave() {
   formData.append('contato', contatoInput.value.trim());
   formData.append('transactionType', transactionType);
   formData.append('propertyType', propertyTypeSelect.value);
+  formData.append('neighborhood', neighborhoodSelect.value);
   if (transactionType === 'Vender' || transactionType === 'Ambos') {
     formData.append('salePrice', unformatCurrency(salePriceInput.value));
   }

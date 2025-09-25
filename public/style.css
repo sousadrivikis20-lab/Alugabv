@@ -138,6 +138,11 @@ body, html {
   margin-top: 15px;
 }
 
+.filter-controls .input-group {
+    flex: 1; /* Faz com que os filtros dividam o espaço igualmente */
+}
+
+
 /* Estilos específicos para o grupo de input da barra de busca */
 #filters-panel .input-group {
   border: none; /* Remove a borda */

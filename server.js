@@ -225,9 +225,9 @@ app.get('/api/imoveis', async (req, res) => {
 
 app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), async (req, res) => {
     try {
-        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description } = req.body;
+        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description, neighborhood } = req.body;
         const propertyDescricao = descricao !== undefined ? descricao : description;
-        if (!nome || !contato || !coords || !transactionType || !propertyType || !propertyDescricao) {
+        if (!nome || !contato || !coords || !transactionType || !propertyType || !propertyDescricao || !neighborhood) {
             return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
 
@@ -268,7 +268,8 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             coords: JSON.parse(coords),
             ownerId: req.session.user.id,
             ownerUsername: req.session.user.username,
-            images: imageUrls
+            images: imageUrls,
+            neighborhood: neighborhood
         };
 
         await dataManager.addProperty(newProperty);
@@ -305,7 +306,8 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
             rentalPrice: req.body.rentalPrice ? parseFloat(req.body.rentalPrice) : existingProperty.rentalPrice,
             rentalPeriod: req.body.rentalPeriod || existingProperty.rentalPeriod,
             images: existingProperty.images || [],
-            ownerId: req.session.user.id
+            ownerId: req.session.user.id,
+            neighborhood: req.body.neighborhood || existingProperty.neighborhood
         };
 
         if (req.files && req.files.length > 0) {
