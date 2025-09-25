@@ -777,7 +777,8 @@ async function handleEditSave() {
     marker.propertyData = updatedProperty;
     marker.setPopupContent(createPopupContent(updatedProperty));
 
-    updateStatus('Imóvel atualizado com sucesso!', 'success');
+    showToast('Imóvel atualizado com sucesso!', 'success');
+    updateStatus('', null); // Limpa a mensagem de status do formulário
     // NÃO chama handleEditCancel aqui! Permanece em modo de edição
 
     // Limpa o estado de alteração de localização
@@ -787,7 +788,8 @@ async function handleEditSave() {
         tempLocationMarker = null;
     }
   } catch (error) {
-    updateStatus(`Erro ao salvar: ${error.message}`, 'error');
+    showToast(`Erro ao salvar: ${error.message}`, 'error');
+    updateStatus(`Falha ao salvar. Tente novamente.`, 'error'); // Mantém uma mensagem no formulário
   } finally {
     toggleLoading(saveEditBtn, false);
   }
