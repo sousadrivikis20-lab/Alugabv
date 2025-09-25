@@ -136,12 +136,13 @@ body, html {
   display: flex;
   gap: 10px;
   margin-top: 15px;
-  flex-wrap: wrap; /* Permite que os filtros quebrem para a próxima linha */
+  flex-wrap: wrap;
 }
 
 .filter-controls .input-group {
-    flex: 1 1 150px; /* Permite que cresçam, mas tenham uma base mínima de largura */
-    min-width: 150px; /* Garante uma largura mínima para cada filtro */
+    /* Impede que os itens cresçam, mantendo um tamanho base. */
+    flex-grow: 1;
+    flex-basis: 150px;
 }
 
 
@@ -995,10 +996,8 @@ button.loading .spinner {
 
   /* Em telas menores, permite que os filtros fiquem lado a lado se houver espaço,
      em vez de forçar uma coluna única. */
-  .filter-controls {
-    flex-direction: column; /* Força os filtros a empilharem verticalmente no mobile */
-    gap: 15px; /* Aumenta o espaçamento vertical quando eles quebram a linha */
-  }
+  /* A regra de flex-wrap já lida com a quebra de linha,
+     removendo a necessidade de forçar uma coluna. */
 
   /* Adiciona espaçamento entre os campos do formulário no mobile */
   form#form-imovel {
