@@ -336,7 +336,7 @@ function isFormValid() {
 }
 
 function createPopupContent(property, doc = document) {
-  const { id, nome, descricao, contato, ownerId, ownerUsername, images, transactionType, salePrice, rentalPrice, rentalPeriod, propertyType } = property;
+  const { id, nome, descricao, contato, ownerId, ownerUsername, images, transactionType, salePrice, rentalPrice, rentalPeriod, propertyType, ownerEmail } = property;
   const numeroWhatsApp = String(contato).replace(/\D/g, '');
   const linkWhatsApp = `https://wa.me/55${numeroWhatsApp}`;
 
@@ -427,6 +427,17 @@ function createPopupContent(property, doc = document) {
  
   `;
   container.appendChild(whatsappLink);
+
+  // Link de E-mail (se existir)
+  if (ownerEmail) {
+    const emailLink = doc.createElement('a');
+    emailLink.href = `mailto:${ownerEmail}`;
+    emailLink.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-envelope" viewBox="0 0 16 16"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/></svg>
+      <span>Enviar E-mail</span>
+    `;
+    container.appendChild(emailLink);
+  }
 
   // Informação do Proprietário
   if (ownerUsername) {
@@ -902,6 +913,31 @@ async function handleChangeName() {
   });
 }
 
+// Função para alterar o e-mail do usuário
+async function handleChangeEmail() {
+  const formHtml = `
+    <div class="modal-form-group">
+      <label for="newEmailInput">Novo endereço de e-mail</label>
+      <input type="email" id="newEmailInput" name="newEmail" value="${currentUser.email || ''}" required>
+    </div>`;
+
+  showActionModal('Alterar E-mail', formHtml, async (formData) => {
+    if (!formData.newEmail) {
+      showToast('O e-mail não pode ser vazio.', 'error');
+      return;
+    }
+    try {
+      const result = await apiCall(`/api/users/${currentUser.id}/email`, { method: 'PUT', body: { newEmail: formData.newEmail.trim() } });
+      showToast(result.message, 'success');
+      currentUser.email = result.newEmail;
+      updateUIForUser();
+      hideActionModal();
+    } catch (error) {
+      showToast(`Erro ao alterar e-mail: ${error.message}`, 'error');
+    }
+  });
+}
+
 // Função para alterar a senha do usuário
 async function handleChangePassword() {
   const formHtml = `
@@ -970,6 +1006,7 @@ async function handleDeleteUser() {
 
 // Adicionar eventos aos botões
 document.getElementById('change-name-btn').addEventListener('click', handleChangeName);
+document.getElementById('change-email-btn').addEventListener('click', handleChangeEmail);
 document.getElementById('change-password-btn').addEventListener('click', handleChangePassword);
 document.getElementById('delete-user-btn').addEventListener('click', handleDeleteUser);
 
@@ -1019,6 +1056,7 @@ async function handleRegister(event) {
   const username = event.target.elements['register-username'].value;
   const password = event.target.elements['register-password'].value;
   const role = event.target.elements['register-role'].value;
+  const email = event.target.elements['register-email'].value;
 
   // Validação de senha forte (igual à troca de senha)
   const passwordError = validatePasswordStrength(password);
@@ -1031,7 +1069,7 @@ async function handleRegister(event) {
   try {    
     const data = await apiCall('/api/auth/register', {
       method: 'POST',
-      body: { username, password, role },
+      body: { username, password, role, email },
     });
     showToast(data.message, 'success');
     setTimeout(() => {

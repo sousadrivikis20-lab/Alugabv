@@ -7,6 +7,7 @@ async function initDB() {
         id VARCHAR(36) PRIMARY KEY,
         username VARCHAR(100) NOT NULL,
         password VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL
       );
 
@@ -39,6 +40,12 @@ async function initDB() {
       ALTER TABLE properties ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(100);
     `);
 
+    // --- Migração: Garante que a coluna 'email' exista na tabela de usuários ---
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+      CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (LOWER(email));
+    `);
+
     // Adiciona a criação da tabela de sessões, usada pelo connect-pg-simple
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "user_sessions" (
@@ -62,7 +69,9 @@ async function initDB() {
 async function readImoveis() {
   try {
     const result = await pool.query(`
-      SELECT * FROM properties;
+      SELECT p.*, u.email as owner_email
+      FROM properties p
+      LEFT JOIN users u ON p.owner_id = u.id;
     `);
     return result.rows.map(row => ({
       id: row.id,
@@ -78,7 +87,8 @@ async function readImoveis() {
       rentalPrice: row.rental_price,
       rentalPeriod: row.rental_period,
       images: row.images || [],
-      neighborhood: row.neighborhood
+      neighborhood: row.neighborhood,
+      ownerEmail: row.owner_email
     }));
   } catch (err) {
     console.error('Erro ao ler imóveis:', err);
@@ -225,7 +235,12 @@ async function deleteProperty(id, ownerId, isModerator = false) {
 
 async function findPropertyById(id) {
   try {
-    const result = await pool.query('SELECT * FROM properties WHERE id = $1', [id]);
+    const result = await pool.query(`
+      SELECT p.*, u.email as owner_email
+      FROM properties p
+      LEFT JOIN users u ON p.owner_id = u.id
+      WHERE p.id = $1
+    `, [id]);
     if (result.rows.length === 0) {
       return null;
     }
@@ -244,7 +259,8 @@ async function findPropertyById(id) {
       rentalPrice: row.rental_price,
       rentalPeriod: row.rental_period,
       images: row.images || [],
-      neighborhood: row.neighborhood
+      neighborhood: row.neighborhood,
+      ownerEmail: row.owner_email
     };
   } catch (err) {
     console.error(`Erro ao buscar imóvel por ID ${id}:`, err);
@@ -266,11 +282,11 @@ async function findUserByUsername(username) {
 async function createUser(user) {
   try {
     const result = await pool.query(`
-      INSERT INTO users (id, username, password, role)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO users (id, username, password, role, email)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (LOWER(username)) DO NOTHING
-      RETURNING id, username, role;
-    `, [user.id, user.username, user.password, user.role]);
+      RETURNING id, username, role, email;
+    `, [user.id, user.username, user.password, user.role, user.email]);
     
     if (result.rowCount === 0) { // Conflito de username, usuário já existe
         return null;
@@ -303,6 +319,16 @@ async function updateUsername(id, newName) {
     }
 }
 
+async function updateUserEmail(id, newEmail) {
+    try {
+        const result = await pool.query('UPDATE users SET email = $1 WHERE id = $2 RETURNING email', [newEmail, id]);
+        if (result.rowCount === 0) return null;
+        return result.rows[0];
+    } catch (err) {
+        console.error(`Erro ao atualizar email do usuário ${id}:`, err);
+        throw err;
+    }
+}
 async function updateUserPassword(id, newPasswordHash) {
     try {
         const result = await pool.query('UPDATE users SET password = $1 WHERE id = $2', [newPasswordHash, id]);
@@ -396,6 +422,7 @@ module.exports = {
   findUserById,
   updateUsername,
   updateUserPassword,
+  updateUserEmail,
   deleteUser,
   findPropertiesByOwner,
   deletePropertiesByOwner,

@@ -1,6 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
@@ -123,19 +124,35 @@ const debugSession = (req, res, next) => {
   next();
 };
 
+// --- Middleware de Segurança: Rate Limiter ---
+const authLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // Janela de 15 minutos
+	max: 20, // Limita cada IP a 20 requisições por janela (login/registro)
+	message: { message: 'Muitas tentativas de autenticação a partir deste IP. Por favor, tente novamente após 15 minutos.' },
+	standardHeaders: true, // Retorna informações do limite nos cabeçalhos `RateLimit-*`
+	legacyHeaders: false, // Desabilita os cabeçalhos `X-RateLimit-*`
+  // 'trust proxy' já está configurado no app, então o rate limiter usará o IP real do cliente.
+});
+
 // --- Rotas de Autenticação ---
 app.use('/api', debugSession);
 
-app.post('/api/auth/register', async (req, res) => {
+// Aplica o rate limiter apenas nas rotas de registro e login
+app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
-        const { username, password, role } = req.body;
-        if (!username || !password || !role) {
+        const { username, password, role, email } = req.body;
+        if (!username || !password || !role || !email) {
             return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
 
         // Adiciona verificação de palavras proibidas no nome de usuário
         if (isProfane(username)) {
             return res.status(400).json({ message: 'O nome de usuário contém palavras não permitidas.' });
+        }
+
+        // Validação simples de e-mail
+        if (!/^\S+@\S+\.\S+$/.test(email)) {
+            return res.status(400).json({ message: 'Formato de e-mail inválido.' });
         }
 
         const existingUser = await dataManager.findUserByUsername(username);
@@ -145,19 +162,21 @@ app.post('/api/auth/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = { id: uuidv4(), username, password: hashedPassword, role };
+        newUser.email = email;
         
         const createdUser = await dataManager.createUser(newUser);
         if (!createdUser) {
-            return res.status(409).json({ message: 'Usuário já existe (conflito no banco de dados).' });
+            return res.status(409).json({ message: 'Nome de usuário ou e-mail já está em uso.' });
         }
         res.status(201).json({ message: 'Usuário registrado com sucesso!' });
     } catch (error) {
         console.error("Erro no registro de usuário:", error);
+        if (error.code === '23505' && error.constraint === 'users_email_lower_idx') return res.status(409).json({ message: 'Este e-mail já está em uso.' });
         res.status(500).json({ message: 'Ocorreu um erro interno ao registrar o usuário.' });
     }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await dataManager.findUserByUsername(username);
@@ -174,6 +193,7 @@ app.post('/api/auth/login', async (req, res) => {
             id: user.id,
             username: user.username,
             role: user.role,
+            email: user.email,
             isModerator: isModerator // Adiciona a flag de moderador à sessão
         };
 
@@ -364,7 +384,10 @@ app.delete('/api/imoveis/:id/images', isAuthenticated, isPropertyOwner, async (r
         propertyToUpdate.images = (propertyToUpdate.images || []).filter(img => img !== imagePath);
         propertyToUpdate.ownerId = req.session.user.id;
 
-        const updatedProperty = await dataManager.updateProperty(id, propertyToUpdate);
+        // CORREÇÃO: Passa o status de moderador para a função de atualização,
+        // garantindo que a permissão seja respeitada.
+        const isModerator = req.session.user.isModerator === true;
+        const updatedProperty = await dataManager.updateProperty(id, propertyToUpdate, isModerator);
 
         res.json({ message: 'Imagem removida com sucesso!', property: updatedProperty });
     } catch (error) {
@@ -446,6 +469,35 @@ app.put('/api/users/:id/name', isAuthenticated, async (req, res) => {
         }
         console.error('Erro ao atualizar nome do usuário:', error);
         res.status(500).json({ message: 'Erro interno ao atualizar nome.' });
+    }
+});
+
+app.put('/api/users/:id/email', isAuthenticated, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { newEmail } = req.body;
+
+        if (req.session.user.id !== id) {
+            return res.status(403).json({ message: 'Você não tem permissão para alterar este e-mail.' });
+        }
+
+        if (!newEmail || !/^\S+@\S+\.\S+$/.test(newEmail)) {
+            return res.status(400).json({ message: 'Formato de e-mail inválido.' });
+        }
+
+        const updatedUser = await dataManager.updateUserEmail(id, newEmail.trim());
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'Usuário não encontrado.' });
+        }
+
+        req.session.user.email = updatedUser.email;
+        res.json({ message: 'E-mail atualizado com sucesso.', newEmail: updatedUser.email });
+    } catch (error) {
+        if (error.code === '23505') {
+            return res.status(409).json({ message: 'Este e-mail já está em uso.' });
+        }
+        console.error('Erro ao atualizar e-mail do usuário:', error);
+        res.status(500).json({ message: 'Erro interno ao atualizar e-mail.' });
     }
 });
 

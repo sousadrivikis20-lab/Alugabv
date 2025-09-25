@@ -4,10 +4,8 @@ Iniciar servidor: Executar run.bat
 
 ### Ao inciar o servidor, o navegador abrirá na página do site automaticamente, aguarde.
 
-Adicionar a opção de "Terreno" nos tipos de imóvel.
-Adicionar filtros de busca por bairro e tipo de imóvel.
 Colocar e mail para os usuários como forma de contato e adicionar essa opção no popup do imóvel.
-Responsividade no site
+Adicionar função de recuperação de senha através do email. (Criando senha aleatória simples para o usuário entrar e trocar de senha.)
 
 
 
