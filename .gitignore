@@ -9,3 +9,6 @@ users.json
 
 # Arquivo de ambiente - NUNCA deve ser versionado
 .env
+
+# instrucoes
+instrucoes.txt

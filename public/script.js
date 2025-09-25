@@ -314,6 +314,9 @@ function createPopupContent(property, doc = document) {
     case 'Fazenda':
       propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-house-lodge-fill" viewBox="0 0 16 16"><path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.707 1.5z"/><path d="M12 9.793V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5V9.793l-1 1V14.5a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5V10.793l-1-1V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5V9.793l4-4 4 4z"/></svg>`;
       break;
+    case 'Terreno':
+      propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bounding-box" viewBox="0 0 16 16"><path d="M5 2V0H0v5h2v6H0v5h5v-2h6v2h5v-5h-2V5h2V0h-5v2H5zm6 1v2h2v6h-2v2H5v-2H3V5h2V3h6zm1-2h3v3h-3V1zM4 1H1v3h3V1zM1 12h3v3H1v-3zm11 3h3v-3h-3v3z"/></svg>`;
+      break;
     case 'Ponto Comercial':
       propertyTypeIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-shop-window" viewBox="0 0 16 16"><path d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35L14.75 4H11V2H5v2H1.25L2.97 1.35zM1 5h14v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5zm6 0v2H5V5h2zm2 0v2h2V5H9zm2 3v2H9V8h2zm-2 0v2H7V8h2zm-2 0v2H5V8h2zm2 3v2H9v-2h2zm-2 0v2H7v-2h2z"/></svg>`;
       break;
@@ -1131,6 +1134,9 @@ function getPropertyMarkerIcon(propertyType) {
       break;
     case 'Fazenda':
       iconSvg = `<svg viewBox="0 0 16 16"><path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.707 1.5z"/><path d="M12 9.793V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5V9.793l-1 1V14.5a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5V10.793l-1-1V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5V9.793l4-4 4 4z"/></svg>`;
+      break;
+    case 'Terreno':
+      iconSvg = `<svg viewBox="0 0 16 16"><path d="M5 2V0H0v5h2v6H0v5h5v-2h6v2h5v-5h-2V5h2V0h-5v2H5zm6 1v2h2v6h-2v2H5v-2H3V5h2V3h6zm1-2h3v3h-3V1zM4 1H1v3h3V1zM1 12h3v3H1v-3zm11 3h3v-3h-3v3z"/></svg>`;
       break;
     case 'Ponto Comercial':
       iconSvg = `<svg viewBox="0 0 16 16"><path d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35L14.75 4H11V2H5v2H1.25L2.97 1.35zM1 5h14v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5zm6 0v2H5V5h2zm2 0v2h2V5H9zm2 3v2H9V8h2zm-2 0v2H7V8h2zm-2 0v2H5V8h2zm2 3v2H9v-2h2zm-2 0v2H7v-2h2z"/></svg>`;
