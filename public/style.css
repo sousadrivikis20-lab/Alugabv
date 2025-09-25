@@ -131,6 +131,13 @@ body, html {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* Container para os novos filtros */
+.filter-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
 /* Estilos específicos para o grupo de input da barra de busca */
 #filters-panel .input-group {
   border: none; /* Remove a borda */
@@ -957,6 +964,10 @@ button.loading .spinner {
   .input-group > select,
   .input-group > textarea {
     font-size: 16px;
+  }
+
+  .filter-controls {
+    flex-direction: column;
   }
 }
 

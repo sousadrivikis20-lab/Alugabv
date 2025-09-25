@@ -58,6 +58,8 @@ const saveEditBtn = document.getElementById('save-edit-btn');
 const cancelEditBtn = document.getElementById('cancel-edit-btn');
 const changeLocationBtn = document.getElementById('change-location-btn');
 const searchInput = document.getElementById('search-input');
+const filterPropertyTypeSelect = document.getElementById('filter-property-type');
+const filterNeighborhoodSelect = document.getElementById('filter-neighborhood');
 
 // Elementos do Modal de Confirmação
 const confirmationModal = document.getElementById('confirmation-modal');
@@ -219,23 +221,76 @@ function togglePropertyForm() {
 }
 
 // --- Funções de Busca e Filtro ---
+
+// Popula os filtros de Tipo de Imóvel e Bairro
+function populateFilters(properties) {
+  const propertyTypes = new Set();
+  const neighborhoods = new Set();
+
+  properties.forEach(prop => {
+    if (prop.propertyType) propertyTypes.add(prop.propertyType);
+    // Assumindo que o bairro está no campo 'nome' ou 'descricao'
+    // Uma solução ideal seria ter um campo 'bairro' no banco de dados.
+    // Por enquanto, vamos extrair de uma lista pré-definida para demonstração.
+    // Exemplo: "Apartamento no Centro" -> Bairro "Centro"
+    const knownNeighborhoods = ['Centro', 'Boa Viagem', 'Pina', 'Setúbal', 'Imbiribeira']; // Lista de exemplo
+    knownNeighborhoods.forEach(bairro => {
+      if (prop.nome.toLowerCase().includes(bairro.toLowerCase()) || prop.descricao.toLowerCase().includes(bairro.toLowerCase())) {
+        neighborhoods.add(bairro);
+      }
+    });
+  });
+
+  // Popula filtro de Tipo de Imóvel
+  filterPropertyTypeSelect.innerHTML = '<option value="">Todos os Tipos</option>'; // Reseta
+  [...propertyTypes].sort().forEach(type => {
+    const option = document.createElement('option');
+    option.value = type;
+    option.textContent = type;
+    filterPropertyTypeSelect.appendChild(option);
+  });
+
+  // Popula filtro de Bairro
+  filterNeighborhoodSelect.innerHTML = '<option value="">Todos os Bairros</option>'; // Reseta
+  [...neighborhoods].sort().forEach(neighborhood => {
+    const option = document.createElement('option');
+    option.value = neighborhood;
+    option.textContent = neighborhood;
+    filterNeighborhoodSelect.appendChild(option);
+  });
+}
+
 function filterProperties() {
   const searchTerm = searchInput.value.toLowerCase().trim();
+  const selectedType = filterPropertyTypeSelect.value;
+  const selectedNeighborhood = filterNeighborhoodSelect.value;
 
   Object.values(markers).forEach(marker => {
     const property = marker.propertyData;
     const propertyName = property.nome.toLowerCase();
-    const propertyType = property.propertyType.toLowerCase();
-    const propertyTransactionType = property.transactionType.toLowerCase();
+    const propertyDescription = property.descricao.toLowerCase();
     const propertyOwner = property.ownerUsername ? property.ownerUsername.toLowerCase() : '';
 
-    // Verifica se o termo de busca está presente no nome, tipo de imóvel, tipo de transação ou proprietário
-    const matches = propertyName.includes(searchTerm) || propertyType.includes(searchTerm) ||
-                    propertyTransactionType.includes(searchTerm) ||
-                    propertyOwner.includes(searchTerm);
+    // 1. Filtro por texto (nome, descrição, proprietário)
+    const textMatch = searchTerm === '' || 
+                      propertyName.includes(searchTerm) || 
+                      propertyDescription.includes(searchTerm) || 
+                      propertyOwner.includes(searchTerm);
 
-    if (matches) { marker.addTo(map); } // Mostra o marcador
-    else { marker.remove(); } // Esconde o marcador
+    // 2. Filtro por tipo de imóvel
+    const typeMatch = selectedType === '' || property.propertyType === selectedType;
+
+    // 3. Filtro por bairro (verificando no nome e descrição)
+    const neighborhoodMatch = selectedNeighborhood === '' || 
+                              propertyName.includes(selectedNeighborhood.toLowerCase()) || 
+                              propertyDescription.includes(selectedNeighborhood.toLowerCase());
+
+    // O marcador só é visível se TODAS as condições forem verdadeiras
+    if (textMatch && typeMatch && neighborhoodMatch) {
+      marker.addTo(map);
+    } else {
+      marker.remove();
+    }
   });
 }
 
@@ -509,8 +564,9 @@ async function loadInitialProperties() {
     const properties = await apiCall('/api/imoveis');
     Object.values(markers).forEach(marker => map.removeLayer(marker));
     markers = {};
-    properties.forEach(prop => addPropertyMarker(prop));
-    filterProperties(); // Aplica o filtro após carregar todos os imóveis
+    properties.forEach(addPropertyMarker);
+    populateFilters(properties); // Popula os filtros com os dados carregados
+    filterProperties(); // Aplica os filtros (se houver algum valor selecionado)
   } catch (error) {
     console.error('Não foi possível carregar imóveis (pode ser que não haja nenhum).', error);
   }
@@ -1086,6 +1142,8 @@ saveEditBtn.addEventListener('click', handleEditSave);
 cancelEditBtn.addEventListener('click', handleEditCancel);
 changeLocationBtn.addEventListener('click', handleChangeLocationStart);
 searchInput.addEventListener('input', filterProperties); // Listener para o campo de busca
+filterPropertyTypeSelect.addEventListener('change', filterProperties);
+filterNeighborhoodSelect.addEventListener('change', filterProperties);
 transactionTypeSelect.addEventListener('change', handleTransactionTypeChange);
 propertyTypeSelect.addEventListener('change', handlePropertyTypeChange);
 salePriceInput.addEventListener('input', () => formatCurrency(salePriceInput));
