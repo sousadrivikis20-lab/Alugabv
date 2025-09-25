@@ -279,10 +279,16 @@ function filterProperties() {
     const neighborhoodMatch = selectedNeighborhood === '' || property.neighborhood === selectedNeighborhood;
 
     // O marcador só é visível se TODAS as condições forem verdadeiras
-    // 4. Filtro por tipo de transação
-    const transactionMatch = selectedTransaction === '' || property.transactionType === selectedTransaction;
+    // 4. Filtro por tipo de transação (lógica ajustada)
+    let transactionMatch = false;
+    if (selectedTransaction === '') {
+      transactionMatch = true; // Mostra todos se nenhuma transação for selecionada
+    } else if (selectedTransaction === 'Vender') {
+      transactionMatch = property.transactionType === 'Vender' || property.transactionType === 'Ambos';
+    } else if (selectedTransaction === 'Alugar') {
+      transactionMatch = property.transactionType === 'Alugar' || property.transactionType === 'Ambos';
+    }
 
-    // O marcador só é visível se TODAS as condições forem verdadeiras
     if (textMatch && typeMatch && neighborhoodMatch && transactionMatch) {
       marker.addTo(map);
     } else {
