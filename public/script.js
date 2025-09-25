@@ -61,6 +61,7 @@ const changeLocationBtn = document.getElementById('change-location-btn');
 const searchInput = document.getElementById('search-input');
 const filterPropertyTypeSelect = document.getElementById('filter-property-type');
 const filterNeighborhoodSelect = document.getElementById('filter-neighborhood');
+const filterTransactionTypeSelect = document.getElementById('filter-transaction-type');
 
 // Elementos do Modal de Confirmação
 const confirmationModal = document.getElementById('confirmation-modal');
@@ -257,6 +258,7 @@ function filterProperties() {
   const searchTerm = searchInput.value.toLowerCase().trim();
   const selectedType = filterPropertyTypeSelect.value;
   const selectedNeighborhood = filterNeighborhoodSelect.value;
+  const selectedTransaction = filterTransactionTypeSelect.value;
 
   Object.values(markers).forEach(marker => {
     const property = marker.propertyData;
@@ -277,7 +279,11 @@ function filterProperties() {
     const neighborhoodMatch = selectedNeighborhood === '' || property.neighborhood === selectedNeighborhood;
 
     // O marcador só é visível se TODAS as condições forem verdadeiras
-    if (textMatch && typeMatch && neighborhoodMatch) {
+    // 4. Filtro por tipo de transação
+    const transactionMatch = selectedTransaction === '' || property.transactionType === selectedTransaction;
+
+    // O marcador só é visível se TODAS as condições forem verdadeiras
+    if (textMatch && typeMatch && neighborhoodMatch && transactionMatch) {
       marker.addTo(map);
     } else {
       marker.remove();
@@ -1139,6 +1145,7 @@ changeLocationBtn.addEventListener('click', handleChangeLocationStart);
 searchInput.addEventListener('input', filterProperties); // Listener para o campo de busca
 filterPropertyTypeSelect.addEventListener('change', filterProperties);
 filterNeighborhoodSelect.addEventListener('change', filterProperties);
+filterTransactionTypeSelect.addEventListener('change', filterProperties);
 transactionTypeSelect.addEventListener('change', handleTransactionTypeChange);
 propertyTypeSelect.addEventListener('change', handlePropertyTypeChange);
 salePriceInput.addEventListener('input', () => formatCurrency(salePriceInput));

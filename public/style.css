@@ -136,10 +136,12 @@ body, html {
   display: flex;
   gap: 10px;
   margin-top: 15px;
+  flex-wrap: wrap; /* Permite que os filtros quebrem para a próxima linha */
 }
 
 .filter-controls .input-group {
-    flex: 1; /* Faz com que os filtros dividam o espaço igualmente */
+    flex: 1 1 150px; /* Permite que cresçam, mas tenham uma base mínima de largura */
+    min-width: 150px; /* Garante uma largura mínima para cada filtro */
 }
 
 
