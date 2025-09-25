@@ -540,7 +540,10 @@ function handleMapClick(e) {
 
 // --- Funções de Comunicação com o Servidor (API) ---
 async function apiCall(endpoint, options = {}) {
-  const fetchOptions = { ...options };
+  // Adiciona a opção 'credentials: "include"' para garantir que os cookies de sessão
+  // sejam enviados em todas as requisições para a API.
+  // Isso resolve o problema de "perda" de sessão em requisições subsequentes.
+  const fetchOptions = { credentials: 'include', ...options };
 
   // Não serializa FormData e deixa o navegador definir o Content-Type
   if (options.body && !(options.body instanceof FormData)) {
