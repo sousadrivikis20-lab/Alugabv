@@ -898,15 +898,9 @@ button.loading .spinner {
   letter-spacing: 0.5px;
 }
 
-/* Espaçamento entre linhas de preço */
-.leaflet-popup-content span + br,
-.leaflet-popup-content strong + br {
-  display: none;
-}
-
 /* Aplica espaçamento apenas aos spans de preço, que são filhos diretos do conteúdo do popup,
    para não quebrar o alinhamento dos ícones com texto (que usam spans aninhados). */
-.leaflet-popup-content > span {
+.leaflet-popup-content .price-line {
   display: block;
   margin-bottom: 6px;
 }
