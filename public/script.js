@@ -225,32 +225,32 @@ function togglePropertyForm() {
 // --- Funções de Busca e Filtro ---
 
 // Popula os filtros de Tipo de Imóvel e Bairro
-function populateFilters(properties) {
-  const propertyTypes = new Set();
-  const neighborhoods = new Set();
-
-  properties.forEach(prop => {
-    if (prop.propertyType) propertyTypes.add(prop.propertyType);
-    // Agora usamos o campo 'neighborhood' que vem do banco de dados
-    if (prop.neighborhood) neighborhoods.add(prop.neighborhood);
-  });
+function populateStaticFilters() {
+  // Pega as opções diretamente dos selects de cadastro para garantir consistência.
+  const propertyTypeOptions = Array.from(propertyTypeSelect.options);
+  const neighborhoodOptions = Array.from(neighborhoodSelect.options);
 
   // Popula filtro de Tipo de Imóvel
   filterPropertyTypeSelect.innerHTML = '<option value="">Todos os Tipos</option>'; // Reseta
-  [...propertyTypes].sort().forEach(type => {
-    const option = document.createElement('option');
-    option.value = type;
-    option.textContent = type;
-    filterPropertyTypeSelect.appendChild(option);
+  propertyTypeOptions.forEach(opt => {
+    // Ignora a primeira opção que é "Selecione o Tipo" (disabled)
+    if (opt.value) {
+      const newOption = document.createElement('option');
+      newOption.value = opt.value;
+      newOption.textContent = opt.textContent;
+      filterPropertyTypeSelect.appendChild(newOption);
+    }
   });
 
   // Popula filtro de Bairro
   filterNeighborhoodSelect.innerHTML = '<option value="">Todos os Bairros</option>'; // Reseta
-  [...neighborhoods].sort().forEach(neighborhood => {
-    const option = document.createElement('option');
-    option.value = neighborhood;
-    option.textContent = neighborhood;
-    filterNeighborhoodSelect.appendChild(option);
+  neighborhoodOptions.forEach(opt => {
+    if (opt.value) {
+      const newOption = document.createElement('option');
+      newOption.value = opt.value;
+      newOption.textContent = opt.textContent;
+      filterNeighborhoodSelect.appendChild(newOption);
+    }
   });
 }
 
@@ -564,7 +564,7 @@ async function loadInitialProperties() {
     Object.values(markers).forEach(marker => map.removeLayer(marker));
     markers = {};
     properties.forEach(addPropertyMarker);
-    populateFilters(properties); // Popula os filtros com os dados carregados
+    // A população dos filtros agora é estática e não depende mais dos imóveis carregados.
     filterProperties(); // Aplica os filtros (se houver algum valor selecionado)
   } catch (error) {
     console.error('Não foi possível carregar imóveis (pode ser que não haja nenhum).', error);
@@ -1054,6 +1054,7 @@ async function handleLogout() {
 // --- Event Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
   checkSession().then(loadInitialProperties);
+  populateStaticFilters(); // Popula os filtros com todas as opções ao carregar a página.
 });
 
 // Listener global para os botões de mostrar/esconder senha
