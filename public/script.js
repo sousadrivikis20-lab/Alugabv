@@ -40,6 +40,7 @@ const salePriceInput = document.getElementById('salePrice');
 const rentalPriceInput = document.getElementById('rentalPrice');
 const propertyTypeSelect = document.getElementById('propertyType');
 const rentalPeriodSelect = document.getElementById('rentalPeriod');
+const contactMethodSelect = document.getElementById('contactMethod');
 const neighborhoodSelect = document.getElementById('neighborhood');
 
 
@@ -323,12 +324,13 @@ function isFormValid() {
   const transactionType = transactionTypeSelect.value;
   const propertyType = propertyTypeSelect.value; // Novo campo
   const neighborhood = neighborhoodSelect.value;
+  const contactMethod = contactMethodSelect.value;
   const salePrice = unformatCurrency(salePriceInput.value);
   const rentalPrice = unformatCurrency(rentalPriceInput.value);
 
-  if (!nome || !descricao || !contato || !transactionType || !propertyType || !neighborhood) return false;
+  if (!nome || !descricao || !transactionType || !propertyType || !neighborhood || !contactMethod) return false;
 
-  if (transactionType === 'Vender' && salePrice <= 0) return false;
+  if (transactionType === 'Vender' && salePrice <= 0) return false; // 'contato' não é mais obrigatório aqui
   if (transactionType === 'Alugar' && rentalPrice <= 0) return false;
   if (transactionType === 'Ambos' && (salePrice <= 0 || rentalPrice <= 0)) return false;
 
@@ -336,8 +338,8 @@ function isFormValid() {
 }
 
 function createPopupContent(property, doc = document) {
-  const { id, nome, descricao, contato, ownerId, ownerUsername, images, transactionType, salePrice, rentalPrice, rentalPeriod, propertyType, ownerEmail } = property;
-  const numeroWhatsApp = String(contato).replace(/\D/g, '');
+  const { id, nome, descricao, contato, ownerId, ownerUsername, images, transactionType, salePrice, rentalPrice, rentalPeriod, propertyType, ownerEmail, ownerPhone, contactMethod } = property;
+  const numeroWhatsApp = String(ownerPhone || contato || '').replace(/\D/g, '');
   const linkWhatsApp = `https://wa.me/55${numeroWhatsApp}`;
 
   const container = doc.createElement('div');
@@ -410,33 +412,44 @@ function createPopupContent(property, doc = document) {
     container.appendChild(span);
   };
 
+  // Função para formatar telefone
+  const formatPhone = (phone) => {
+    const digits = String(phone).replace(/\D/g, '');
+    if (digits.length === 11) { // Celular com DDD
+      return `(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7)}`;
+    }
+    if (digits.length === 10) { // Fixo com DDD
+      return `(${digits.substring(0, 2)}) ${digits.substring(2, 6)}-${digits.substring(6)}`;
+    }
+    return phone; // Retorna original se não for um formato conhecido
+  };
+
   if ((transactionType === 'Vender' || transactionType === 'Ambos') && salePrice) {
     createPriceLine('Venda', salePrice);
   }
   if ((transactionType === 'Alugar' || transactionType === 'Ambos') && rentalPrice) {
     createPriceLine('Aluguel', rentalPrice, rentalPeriod);
   }
-
-  // Link do WhatsApp (ícone ao lado do texto)
-  const whatsappLink = doc.createElement('a');
-  whatsappLink.href = linkWhatsApp;
-  whatsappLink.target = '_blank';
-  whatsappLink.innerHTML = `   
-  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-whatsapp" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>
-    <span>Chamar no WhatsApp</span>
- 
-  `;
-  container.appendChild(whatsappLink);
-
-  // Link de E-mail (se existir)
-  if (ownerEmail) {
+  
+  // Links de Contato (WhatsApp, E-mail, Telefone)
+  if (contactMethod === 'whatsapp' || contactMethod === 'all') {
+    const whatsappLink = doc.createElement('a');
+    whatsappLink.href = linkWhatsApp;
+    whatsappLink.target = '_blank';
+    whatsappLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-whatsapp" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg> <span>WhatsApp</span>`;
+    container.appendChild(whatsappLink);
+  }
+  if ((contactMethod === 'email' || contactMethod === 'all') && ownerEmail) {
     const emailLink = doc.createElement('a');
     emailLink.href = `mailto:${ownerEmail}`;
-    emailLink.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-envelope" viewBox="0 0 16 16"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/></svg>
-      <span>Enviar E-mail</span>
-    `;
+    emailLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-envelope" viewBox="0 0 16 16"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/></svg> <span>E-mail</span>`;
     container.appendChild(emailLink);
+  }
+  if ((contactMethod === 'phone' || contactMethod === 'all') && ownerPhone) {
+    const phoneEl = doc.createElement('div');
+    phoneEl.className = 'phone-contact'; // Para estilização futura, se necessário
+    phoneEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-telephone" viewBox="0 0 16 16"><path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.246 1.486l-.548 2.19a.678.678 0 0 0 .178.643l2.457 2.457a.678.678 0 0 0 .644.178l2.189-.547a1.745 1.745 0 0 1 1.486.246l2.299 1.794a1.745 1.745 0 0 1 .163 2.612l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.634 18.634 0 0 1-7.01-4.42 18.634 18.634 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877L1.885.511z"/></svg> <strong>Telefone:</strong> ${formatPhone(ownerPhone)}`;
+    container.appendChild(phoneEl);
   }
 
   // Informação do Proprietário
@@ -532,6 +545,7 @@ function handleMapClick(e) {
   formData.append('transactionType', transactionTypeSelect.value);
   formData.append('propertyType', propertyTypeSelect.value); // Novo campo
   formData.append('neighborhood', neighborhoodSelect.value);
+  formData.append('contactMethod', contactMethodSelect.value);
 
   const transactionType = transactionTypeSelect.value;
   if (transactionType === 'Vender' || transactionType === 'Ambos') {
@@ -624,6 +638,7 @@ function handleEditStart(id) {
   transactionTypeSelect.value = property.transactionType;
   propertyTypeSelect.value = property.propertyType;
   neighborhoodSelect.value = property.neighborhood || '';
+  contactMethodSelect.value = property.contactMethod || 'whatsapp';
 
   // Formata e preenche os preços
   if (property.salePrice) {
@@ -757,6 +772,7 @@ async function handleEditSave() {
   formData.append('transactionType', transactionType);
   formData.append('propertyType', propertyTypeSelect.value);
   formData.append('neighborhood', neighborhoodSelect.value);
+  formData.append('contactMethod', contactMethodSelect.value);
   if (transactionType === 'Vender' || transactionType === 'Ambos') {
     formData.append('salePrice', unformatCurrency(salePriceInput.value));
   }
@@ -938,6 +954,31 @@ async function handleChangeEmail() {
   });
 }
 
+// Função para alterar o telefone do usuário
+async function handleChangePhone() {
+  const formHtml = `
+    <div class="modal-form-group">
+      <label for="newPhoneInput">Novo número de telefone</label>
+      <input type="tel" id="newPhoneInput" name="newPhone" value="${currentUser.phone || ''}" placeholder="(00) 00000-0000">
+    </div>`;
+
+  showActionModal('Alterar Telefone', formHtml, async (formData) => {
+    const phone = (formData.newPhone || '').replace(/\D/g, '');
+    if (phone && (phone.length < 10 || phone.length > 11)) {
+      showToast('Por favor, insira um telefone válido com DDD.', 'error');
+      return;
+    }
+    try {
+      const result = await apiCall(`/api/users/${currentUser.id}/phone`, { method: 'PUT', body: { newPhone: phone } });
+      showToast(result.message, 'success');
+      currentUser.phone = result.newPhone;
+      hideActionModal();
+    } catch (error) {
+      showToast(`Erro ao alterar telefone: ${error.message}`, 'error');
+    }
+  });
+}
+
 // Função para alterar a senha do usuário
 async function handleChangePassword() {
   const formHtml = `
@@ -1007,6 +1048,7 @@ async function handleDeleteUser() {
 // Adicionar eventos aos botões
 document.getElementById('change-name-btn').addEventListener('click', handleChangeName);
 document.getElementById('change-email-btn').addEventListener('click', handleChangeEmail);
+document.getElementById('change-phone-btn').addEventListener('click', handleChangePhone);
 document.getElementById('change-password-btn').addEventListener('click', handleChangePassword);
 document.getElementById('delete-user-btn').addEventListener('click', handleDeleteUser);
 
@@ -1057,6 +1099,7 @@ async function handleRegister(event) {
   const password = event.target.elements['register-password'].value;
   const role = event.target.elements['register-role'].value;
   const email = event.target.elements['register-email'].value;
+  const phone = event.target.elements['register-phone'].value;
 
   // Validação de senha forte (igual à troca de senha)
   const passwordError = validatePasswordStrength(password);
@@ -1069,7 +1112,7 @@ async function handleRegister(event) {
   try {    
     const data = await apiCall('/api/auth/register', {
       method: 'POST',
-      body: { username, password, role, email },
+      body: { username, password, role, email, phone },
     });
     showToast(data.message, 'success');
     setTimeout(() => {
@@ -1203,6 +1246,9 @@ rentalPriceInput.addEventListener('input', () => formatCurrency(rentalPriceInput
 // Garante que o campo de WhatsApp aceite apenas números
 contatoInput.addEventListener('input', () => {
   contatoInput.value = contatoInput.value.replace(/\D/g, '');
+});
+document.getElementById('register-phone').addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/\D/g, '');
 });
 
 toggleAccountActionsBtn.addEventListener('click', () => {

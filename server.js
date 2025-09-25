@@ -140,8 +140,8 @@ app.use('/api', debugSession);
 // Aplica o rate limiter apenas nas rotas de registro e login
 app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
-        const { username, password, role, email } = req.body;
-        if (!username || !password || !role || !email) {
+        const { username, password, role, email, phone } = req.body;
+        if (!username || !password || !role) {
             return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
 
@@ -151,7 +151,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         }
 
         // Validação simples de e-mail
-        if (!/^\S+@\S+\.\S+$/.test(email)) {
+        if (email && !/^\S+@\S+\.\S+$/.test(email)) {
             return res.status(400).json({ message: 'Formato de e-mail inválido.' });
         }
 
@@ -162,7 +162,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = { id: uuidv4(), username, password: hashedPassword, role };
-        newUser.email = email;
+        newUser.email = email || null;
+        newUser.phone = phone || null;
         
         const createdUser = await dataManager.createUser(newUser);
         if (!createdUser) {
@@ -194,6 +195,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
             username: user.username,
             role: user.role,
             email: user.email,
+            phone: user.phone,
             isModerator: isModerator // Adiciona a flag de moderador à sessão
         };
 
@@ -245,9 +247,9 @@ app.get('/api/imoveis', async (req, res) => {
 
 app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), async (req, res) => {
     try {
-        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description, neighborhood } = req.body;
+        const { nome, contato, coords, transactionType, propertyType, salePrice, rentalPrice, rentalPeriod, descricao, description, neighborhood, contactMethod } = req.body;
         const propertyDescricao = descricao !== undefined ? descricao : description;
-        if (!nome || !contato || !coords || !transactionType || !propertyType || !propertyDescricao || !neighborhood) {
+        if (!nome || !coords || !transactionType || !propertyType || !propertyDescricao || !neighborhood || !contactMethod) {
             return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
 
@@ -289,7 +291,8 @@ app.post('/api/imoveis', isAuthenticated, isOwner, upload.array('imagens', 5), a
             ownerId: req.session.user.id,
             ownerUsername: req.session.user.username,
             images: imageUrls,
-            neighborhood: neighborhood
+            neighborhood: neighborhood,
+            contactMethod: contactMethod
         };
 
         await dataManager.addProperty(newProperty);
@@ -327,7 +330,8 @@ app.put('/api/imoveis/:id', isAuthenticated, isPropertyOwner, upload.array('imag
             rentalPeriod: req.body.rentalPeriod || existingProperty.rentalPeriod,
             images: existingProperty.images || [],
             ownerId: req.session.user.id,
-            neighborhood: req.body.neighborhood || existingProperty.neighborhood
+            neighborhood: req.body.neighborhood || existingProperty.neighborhood,
+            contactMethod: req.body.contactMethod || existingProperty.contactMethod
         };
 
         if (req.files && req.files.length > 0) {
@@ -498,6 +502,30 @@ app.put('/api/users/:id/email', isAuthenticated, async (req, res) => {
         }
         console.error('Erro ao atualizar e-mail do usuário:', error);
         res.status(500).json({ message: 'Erro interno ao atualizar e-mail.' });
+    }
+});
+
+app.put('/api/users/:id/phone', isAuthenticated, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { newPhone } = req.body;
+
+        if (req.session.user.id !== id) {
+            return res.status(403).json({ message: 'Você não tem permissão para alterar este telefone.' });
+        }
+
+        const phone = (newPhone || '').replace(/\D/g, '');
+
+        const updatedUser = await dataManager.updateUserPhone(id, phone);
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'Usuário não encontrado.' });
+        }
+
+        req.session.user.phone = updatedUser.phone;
+        res.json({ message: 'Telefone atualizado com sucesso.', newPhone: updatedUser.phone });
+    } catch (error) {
+        console.error('Erro ao atualizar telefone do usuário:', error);
+        res.status(500).json({ message: 'Erro interno ao atualizar telefone.' });
     }
 });
 

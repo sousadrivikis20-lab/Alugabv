@@ -7,7 +7,8 @@ async function initDB() {
         id VARCHAR(36) PRIMARY KEY,
         username VARCHAR(100) NOT NULL,
         password VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
+        email VARCHAR(255),
+        phone VARCHAR(20),
         role VARCHAR(50) NOT NULL
       );
 
@@ -28,6 +29,7 @@ async function initDB() {
         sale_price DECIMAL(10,2),
         rental_price DECIMAL(10,2),
         rental_period VARCHAR(50),
+        contact_method VARCHAR(20) NOT NULL DEFAULT 'whatsapp',
         neighborhood VARCHAR(100),
         images TEXT[]
       );
@@ -41,8 +43,13 @@ async function initDB() {
     `);
 
     // --- Migração: Garante que a coluna 'email' exista na tabela de usuários ---
+    // E a coluna 'phone'
     await pool.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+      -- Altera a coluna email para permitir valores nulos, caso já exista como NOT NULL
+      ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+
       CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (LOWER(email));
     `);
 
@@ -60,6 +67,11 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS "IDX_user_sessions_expire" ON "user_sessions" ("expire");
     `);
     console.log('Banco de dados inicializado com sucesso');
+
+    // --- Migração: Garante que a coluna 'contact_method' exista na tabela de properties ---
+    await pool.query(`
+      ALTER TABLE properties ADD COLUMN IF NOT EXISTS contact_method VARCHAR(20) NOT NULL DEFAULT 'whatsapp';
+    `);
   } catch (err) {
     console.error('Erro ao inicializar banco de dados:', err);
     throw err;
@@ -69,9 +81,10 @@ async function initDB() {
 async function readImoveis() {
   try {
     const result = await pool.query(`
-      SELECT p.*, u.email as owner_email
+      SELECT p.*, u.email as owner_email, u.phone as owner_phone
       FROM properties p
-      LEFT JOIN users u ON p.owner_id = u.id;
+      LEFT JOIN users u ON p.owner_id = u.id
+      ORDER BY p.id;
     `);
     return result.rows.map(row => ({
       id: row.id,
@@ -88,7 +101,9 @@ async function readImoveis() {
       rentalPeriod: row.rental_period,
       images: row.images || [],
       neighborhood: row.neighborhood,
-      ownerEmail: row.owner_email
+      ownerEmail: row.owner_email,
+      ownerPhone: row.owner_phone,
+      contactMethod: row.contact_method
     }));
   } catch (err) {
     console.error('Erro ao ler imóveis:', err);
@@ -101,10 +116,10 @@ async function addProperty(property) {
     const result = await pool.query(`
       INSERT INTO properties (
         id, nome, descricao, contato, coords, 
-        owner_id, owner_username, transaction_type, 
+        owner_id, owner_username, transaction_type,
         property_type, sale_price, rental_price,
-        rental_period, images, neighborhood
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        rental_period, images, neighborhood, contact_method
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *;
     `, [
       property.id,
@@ -120,7 +135,8 @@ async function addProperty(property) {
       property.rentalPrice,
       property.rentalPeriod,
       property.images || [],
-      property.neighborhood
+      property.neighborhood,
+      property.contactMethod
     ]);
     const row = result.rows[0];
     return {
@@ -158,9 +174,10 @@ async function updateProperty(id, propertyData, isModerator = false) {
         sale_price = $7,
         rental_price = $8,
         rental_period = $9,
-        images = $10,
-        neighborhood = $11
-      WHERE id = $12
+        images = $10,        
+        neighborhood = $11,
+        contact_method = $12
+      WHERE id = $13
     `;
     let params = [
       propertyData.nome,
@@ -174,11 +191,12 @@ async function updateProperty(id, propertyData, isModerator = false) {
       propertyData.rentalPeriod,
       propertyData.images,      
       propertyData.neighborhood,
+      propertyData.contactMethod,
       id
     ];
 
     if (!isModerator) {
-      query += ' AND owner_id = $13';
+      query += ' AND owner_id = $14';
       params.push(propertyData.ownerId);
     }
 
@@ -236,7 +254,7 @@ async function deleteProperty(id, ownerId, isModerator = false) {
 async function findPropertyById(id) {
   try {
     const result = await pool.query(`
-      SELECT p.*, u.email as owner_email
+      SELECT p.*, u.email as owner_email, u.phone as owner_phone
       FROM properties p
       LEFT JOIN users u ON p.owner_id = u.id
       WHERE p.id = $1
@@ -260,7 +278,9 @@ async function findPropertyById(id) {
       rentalPeriod: row.rental_period,
       images: row.images || [],
       neighborhood: row.neighborhood,
-      ownerEmail: row.owner_email
+      ownerEmail: row.owner_email,
+      ownerPhone: row.owner_phone,
+      contactMethod: row.contact_method
     };
   } catch (err) {
     console.error(`Erro ao buscar imóvel por ID ${id}:`, err);
@@ -282,11 +302,11 @@ async function findUserByUsername(username) {
 async function createUser(user) {
   try {
     const result = await pool.query(`
-      INSERT INTO users (id, username, password, role, email)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO users (id, username, password, role, email, phone)
+      VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (LOWER(username)) DO NOTHING
-      RETURNING id, username, role, email;
-    `, [user.id, user.username, user.password, user.role, user.email]);
+      RETURNING id, username, role, email, phone;
+    `, [user.id, user.username, user.password, user.role, user.email, user.phone]);
     
     if (result.rowCount === 0) { // Conflito de username, usuário já existe
         return null;
@@ -326,6 +346,17 @@ async function updateUserEmail(id, newEmail) {
         return result.rows[0];
     } catch (err) {
         console.error(`Erro ao atualizar email do usuário ${id}:`, err);
+        throw err;
+    }
+}
+
+async function updateUserPhone(id, newPhone) {
+    try {
+        const result = await pool.query('UPDATE users SET phone = $1 WHERE id = $2 RETURNING phone', [newPhone, id]);
+        if (result.rowCount === 0) return null;
+        return result.rows[0];
+    } catch (err) {
+        console.error(`Erro ao atualizar telefone do usuário ${id}:`, err);
         throw err;
     }
 }
@@ -422,6 +453,7 @@ module.exports = {
   findUserById,
   updateUsername,
   updateUserPassword,
+  updateUserPhone,
   updateUserEmail,
   deleteUser,
   findPropertiesByOwner,
