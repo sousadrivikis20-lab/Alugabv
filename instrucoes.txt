@@ -4,7 +4,7 @@ Iniciar servidor: Executar run.bat
 
 ### Ao inciar o servidor, o navegador abrirá na página do site automaticamente, aguarde.
 
-Colocar e mail para os usuários como forma de contato e adicionar essa opção no popup do imóvel.
+Testar e-mail, arrumar formatação do e-mail, demora p atualizar.
 Adicionar função de recuperação de senha através do email. (Criando senha aleatória simples para o usuário entrar e trocar de senha.)
 
 

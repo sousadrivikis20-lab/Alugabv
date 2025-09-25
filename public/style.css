@@ -529,10 +529,18 @@ label.input-group {
   margin-top: 10px;
   margin-bottom: 8px;
   font-size: 15px;
-  font-weight: 600;
   gap: 7px;
   display: inline-flex;
   align-items: center;
+  /* Estilo customizado para links de contato */
+  color: var(--accent-green);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.leaflet-popup-content a:hover {
+  color: var(--accent-green-hover);
 }
 
 /* Espaço entre botões de ação - REMOVER espaçamento extra dos cards */
@@ -931,9 +939,12 @@ button.loading .spinner {
 
 /* Aplica espaçamento apenas aos spans de preço, que são filhos diretos do conteúdo do popup,
    para não quebrar o alinhamento dos ícones com texto (que usam spans aninhados). */
-.leaflet-popup-content .price-line {
-  display: block;
+.price-line, .phone-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 6px;
+  color: var(--text-dark);
 }
 
 /* Espaço entre botões de ação */
