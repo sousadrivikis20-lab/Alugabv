@@ -341,6 +341,11 @@ form#form-imovel {
   width: 100%;
 }
 
+/* Adiciona um cursor de ponteiro para indicar que o grupo é clicável */
+label.input-group {
+  width: 100%;
+}
+
 /* Novo: Grupo de input com ícone */
 .input-group {
   position: relative; /* Essencial para posicionar o ícone da senha */
@@ -977,6 +982,11 @@ button.loading .spinner {
      em vez de forçar uma coluna única. */
   .filter-controls {
     gap: 15px; /* Aumenta o espaçamento vertical quando eles quebram a linha */
+  }
+
+  /* Adiciona espaçamento entre os campos do formulário no mobile */
+  form#form-imovel {
+    gap: 20px;
   }
 }
 
