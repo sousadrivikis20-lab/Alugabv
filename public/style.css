@@ -525,6 +525,24 @@ label.input-group {
   border-bottom: 1px solid #eee;
 }
 
+/* Estilo para os links de contato (WhatsApp, E-mail) */
+.leaflet-popup-content a {
+  margin-top: 10px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent-green);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.leaflet-popup-content a:hover {
+  color: var(--accent-green-hover);
+}
+
 /* Espaço entre botões de ação - REMOVER espaçamento extra dos cards */
 .popup-actions {
   margin-top: 12px;
@@ -898,23 +916,6 @@ button.loading .spinner {
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #eee;
-}
-
-.leaflet-popup-content a {
-  margin-top: 10px;
-  margin-bottom: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--accent-green);
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.leaflet-popup-content a:hover {
-  color: var(--accent-green-hover);
 }
 
 .leaflet-popup-content .property-owner {
