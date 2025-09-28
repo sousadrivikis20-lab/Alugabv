@@ -143,8 +143,8 @@ app.use('/api', debugSession);
 app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
         const { username, password, role, email, phone } = req.body;
-        if (!username || !password || !role) {
-            return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+        if (!username || !password || !role || !email || !phone) {
+            return res.status(400).json({ message: 'Todos os campos (usuário, senha, e-mail e telefone) são obrigatórios.' });
         }
 
         // Adiciona verificação de palavras proibidas no nome de usuário
@@ -163,9 +163,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = { id: uuidv4(), username, password: hashedPassword, role };
-        newUser.email = email || null;
-        newUser.phone = phone || null;
+        const newUser = { id: uuidv4(), username, password: hashedPassword, role, email, phone };
         
         const createdUser = await dataManager.createUser(newUser);
         if (!createdUser) {

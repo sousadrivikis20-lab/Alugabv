@@ -1096,12 +1096,20 @@ async function handleRegister(event) {
   const password = event.target.elements['register-password'].value;
   const role = event.target.elements['register-role'].value;
   const email = event.target.elements['register-email'].value;
-  const phone = event.target.elements['register-phone'].value;
+  const phoneInput = event.target.elements['register-phone'];
+  const phone = phoneInput.value;
 
   // Validação de senha forte (igual à troca de senha)
   const passwordError = validatePasswordStrength(password);
   if (passwordError) {
     showToast(passwordError, 'error');
+    return;
+  }
+
+  // Validação do telefone (números com DDD)
+  const phoneDigits = phone.replace(/\D/g, '');
+  if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+    showToast('Por favor, insira um telefone válido com DDD (10 ou 11 dígitos).', 'error');
     return;
   }
 
