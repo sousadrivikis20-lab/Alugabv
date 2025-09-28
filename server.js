@@ -58,8 +58,10 @@ app.use(session({
     saveUninitialized: false,
     cookie: {
         // secure: true é OBRIGATÓRIO para 'sameSite: "none"' e para produção HTTPS.
-        // O 'trust proxy' garante que o Express saiba que a conexão é segura.
-        secure: process.env.NODE_ENV === 'production',
+        // Usar 'auto' é a prática recomendada. Ele define 'secure' como true
+        // automaticamente se a conexão for HTTPS, funcionando tanto em produção
+        // quanto em desenvolvimento local (HTTP) sem ajustes.
+        secure: 'auto',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 dia
         // 'lax' é o padrão moderno e seguro para a maioria das aplicações.
