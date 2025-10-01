@@ -48,15 +48,28 @@ async function initDB() {
 
     // --- Migração: Garante que a coluna 'email' exista na tabela de usuários ---
     // E a coluna 'phone'
-    await pool.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
-      -- Altera a coluna email para permitir valores nulos, caso já exista como NOT NULL
-      ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+    // Limpa telefones duplicados antes de criar índice
+await pool.query(`
+  DO $$
+  BEGIN
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'users' AND column_name = 'phone'
+    ) THEN
+      WITH duplicates AS (
+        SELECT ctid, phone,
+               row_number() OVER (PARTITION BY phone ORDER BY ctid) as rn
+        FROM users
+        WHERE phone IS NOT NULL AND phone <> ''
+      )
+      UPDATE users
+      SET phone = NULL
+      WHERE ctid IN (SELECT ctid FROM duplicates WHERE rn > 1);
+    END IF;
+  END;
+  $$;
+`);
 
-      CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (LOWER(email));
-      CREATE UNIQUE INDEX IF NOT EXISTS users_phone_idx ON users (phone);
-    `);
 
     // Adiciona a criação da tabela de sessões, usada pelo connect-pg-simple
     await pool.query(`
