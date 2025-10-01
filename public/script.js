@@ -1063,13 +1063,13 @@ async function checkSession() {
 async function handleLogin(event) {
   event.preventDefault();
   const button = event.target.querySelector('button[type="submit"]');
-  const username = event.target.elements['login-username'].value;
+  const identifier = event.target.elements['login-identifier'].value;
   const password = event.target.elements['login-password'].value;
   toggleLoading(button, true);
   try {    
     const data = await apiCall('/api/auth/login', {
       method: 'POST',
-      body: { username, password },
+      body: { identifier, password },
     });
     currentUser = data.user;
     updateUIForUser();

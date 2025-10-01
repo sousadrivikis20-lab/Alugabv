@@ -162,6 +162,12 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
             return res.status(409).json({ message: 'Este nome de usuário já está em uso. Tente adicionar um sobrenome ou um apelido para diferenciá-lo.' });
         }
 
+        // Verifica se o telefone já existe
+        const existingPhone = await dataManager.findUserByPhone(phone);
+        if (existingPhone) {
+            return res.status(409).json({ message: 'Este número de telefone já está em uso.' });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = { id: uuidv4(), username, password: hashedPassword, role, email, phone };
         
@@ -172,6 +178,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         res.status(201).json({ message: 'Usuário registrado com sucesso!' });
     } catch (error) {
         console.error("Erro no registro de usuário:", error);
+        if (error.code === '23505' && error.constraint === 'users_phone_idx') return res.status(409).json({ message: 'Este número de telefone já está em uso.' });
         if (error.code === '23505' && error.constraint === 'users_email_lower_idx') return res.status(409).json({ message: 'Este e-mail já está em uso.' });
         res.status(500).json({ message: 'Ocorreu um erro interno ao registrar o usuário.' });
     }
@@ -179,8 +186,13 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
 app.post('/api/auth/login', authLimiter, async (req, res) => {
     try {
-        const { username, password } = req.body;
-        const user = await dataManager.findUserByUsername(username);
+        const { identifier, password } = req.body;
+        if (!identifier || !password) {
+            return res.status(400).json({ message: 'Usuário/e-mail/telefone e senha são obrigatórios.' });
+        }
+
+        // Usa a nova função para encontrar o usuário por qualquer um dos três campos
+        const user = await dataManager.findUserByIdentifier(identifier);
 
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
@@ -206,7 +218,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
                 console.error("Erro ao salvar a sessão durante o login:", err);
                 return res.status(500).json({ message: 'Ocorreu um erro interno durante o login.' });
             }
-            console.log(`[DEBUG] Sessão para o usuário ${user.username} salva com sucesso. SID: ${req.sessionID}`);
+            console.log(`[DEBUG] Sessão para o usuário ${user.username} (logado com '${identifier}') salva com sucesso. SID: ${req.sessionID}`);
             res.json({ message: 'Login bem-sucedido!', user: userSessionData });
         });
     } catch (error) {

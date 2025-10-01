@@ -55,6 +55,7 @@ async function initDB() {
       ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
 
       CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (LOWER(email));
+      CREATE UNIQUE INDEX IF NOT EXISTS users_phone_idx ON users (phone);
     `);
 
     // Adiciona a criação da tabela de sessões, usada pelo connect-pg-simple
@@ -296,6 +297,31 @@ async function findUserByUsername(username) {
   }
 }
 
+async function findUserByIdentifier(identifier) {
+  try {
+    // Esta query busca um usuário onde o identificador pode corresponder
+    // ao nome de usuário (case-insensitive), ao e-mail (case-insensitive) ou ao telefone.
+    const result = await pool.query(
+      'SELECT * FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1) OR phone = $1',
+      [identifier]
+    );
+    return result.rows[0];
+  } catch (err) {
+    console.error(`Erro ao buscar usuário pelo identificador ${identifier}:`, err);
+    throw err;
+  }
+}
+
+async function findUserByPhone(phone) {
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
+    return result.rows[0];
+  } catch (err) {
+    console.error(`Erro ao buscar usuário pelo telefone ${phone}:`, err);
+    throw err;
+  }
+}
+
 async function createUser(user) {
   try {
     const result = await pool.query(`
@@ -441,6 +467,8 @@ async function deleteUserAndContent(id) {
 module.exports = {
   initDB,
   findUserByUsername,
+  findUserByIdentifier,
+  findUserByPhone,
   createUser,
   readImoveis,
   addProperty,
