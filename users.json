@@ -1,20 +1,9 @@
 [
   {
-    "id": "49e41ea5-6f56-499e-9d22-e18b4ec1b27c",
-    "username": "vini",
-    "password": "$2b$10$9Pec/t7jzMAOA.S1NEZAa.kqQT6/IM4xvgq/2gPJt4ag5K2LYyvp2",
-    "role": "user"
-  },
-  {
     "id": "d58f28e4-7328-4ec3-8c3c-e41cf42c3567",
     "username": "vinicius",
     "password": "$2b$10$aF0HvQDvGbZZhGu8iTiqHem5bJPwRRTBdV3P5uNFj6AMFp4.hoz8C",
     "role": "owner"
-  },
-  {
-    "id": "96a9ef11-cbb6-4750-bc50-79500ba4b99c",
-    "username": "dani",
-    "password": "$2b$10$kmdE5sBpm46wYZgFEs6xo.JxFtDBjTrNOoJDpV07K5jv2PSqBDlly",
-    "role": "owner"
   }
+  
 ]
